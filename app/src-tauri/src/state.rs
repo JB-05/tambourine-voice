@@ -1,0 +1,9 @@
+use std::sync::atomic::AtomicBool;
+
+#[derive(Default)]
+pub struct AppState {
+    /// Tracks if currently recording (for both toggle and hold modes)
+    pub is_recording: AtomicBool,
+    /// Tracks if PTT key is currently held down (for hold-to-record mode)
+    pub ptt_key_held: AtomicBool,
+}
