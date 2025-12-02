@@ -76,11 +76,7 @@ body {
 .sidebar-logo-icon {
 	width: 32px;
 	height: 32px;
-	background: linear-gradient(
-		135deg,
-		var(--accent-primary),
-		var(--accent-hover)
-	);
+	background: var(--accent-primary);
 	border-radius: 8px;
 	display: flex;
 	align-items: center;
@@ -130,14 +126,14 @@ body {
 	border-color: var(--border-subtle);
 }
 
-.nav-item.active .nav-icon {
-	color: var(--accent-primary);
-}
-
 .nav-icon {
 	width: 18px;
 	height: 18px;
 	opacity: 0.8;
+}
+
+.nav-item.active .nav-icon {
+	color: var(--accent-primary);
 }
 
 .sidebar-footer {
@@ -199,11 +195,7 @@ body {
 
 /* Instructions Card */
 .instructions-card {
-	background: linear-gradient(
-		135deg,
-		var(--bg-card) 0%,
-		var(--bg-elevated) 100%
-	);
+	background: var(--bg-card);
 	border: 1px solid var(--border-default);
 	border-radius: 16px;
 	padding: 24px 28px;
@@ -217,9 +209,9 @@ body {
 	position: absolute;
 	top: 0;
 	left: 0;
-	right: 0;
+	width: 60px;
 	height: 2px;
-	background: linear-gradient(90deg, var(--accent-primary), transparent);
+	background: var(--accent-primary);
 }
 
 .instructions-card-title {

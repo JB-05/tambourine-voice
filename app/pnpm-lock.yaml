@@ -15,20 +15,20 @@ importers:
         specifier: ^8.3.9
         version: 8.3.9(react@19.2.0)
       '@pipecat-ai/client-js':
-        specifier: ^1.4.1
-        version: 1.4.1
+        specifier: ^1.5.0
+        version: 1.5.0
       '@pipecat-ai/client-react':
         specifier: ^1.1.0
-        version: 1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.4.1)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        version: 1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.5.0)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@pipecat-ai/voice-ui-kit':
         specifier: ^0.5.0
-        version: 0.5.0(@daily-co/daily-js@0.83.1)(@pipecat-ai/client-js@1.4.1)(@pipecat-ai/client-react@1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.4.1)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        version: 0.5.0(@daily-co/daily-js@0.83.1)(@pipecat-ai/client-js@1.5.0)(@pipecat-ai/client-react@1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.5.0)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@pipecat-ai/websocket-transport':
-        specifier: ^1.4.0
-        version: 1.4.0(@pipecat-ai/client-js@1.4.1)
+        specifier: ^1.5.0
+        version: 1.5.0(@pipecat-ai/client-js@1.5.0)
       '@tailwindcss/vite':
         specifier: ^4.1.17
-        version: 4.1.17(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))
+        version: 4.1.17(vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))
       '@tanstack/react-query':
         specifier: ^5.90.11
         version: 5.90.11(react@19.2.0)
@@ -65,13 +65,13 @@ importers:
         version: 19.2.3(@types/react@19.2.7)
       '@vitejs/plugin-react':
         specifier: 5.1.1
-        version: 5.1.1(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))
+        version: 5.1.1(vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
-        specifier: ^7.2.4
-        version: 7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)
+        specifier: ^7.2.6
+        version: 7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)
 
 packages:
 
@@ -433,8 +433,8 @@ packages:
     peerDependencies:
       react: ^18.x || ^19.x
 
-  '@pipecat-ai/client-js@1.4.1':
-    resolution: {integrity: sha512-NwqpsSpNd2nK0Nm33lUTxU0qc0sTPcC9x/sJaOFraEtAxhbEXWOo0mam0E/AqXQ9m/r/HusXoI645u384HujsA==}
+  '@pipecat-ai/client-js@1.5.0':
+    resolution: {integrity: sha512-WE8n5P98XoOyEX+k6DkcxBFaeoP82rDl3BEm4Zxf8tw1Umw5zFsv73qR6ztU4D5WDbYiscA3J+hGfe+g8PSUIw==}
 
   '@pipecat-ai/client-react@1.1.0':
     resolution: {integrity: sha512-OfXd2vd8ooOE1I/7SwVnSPXz2UC/L2GlAMYVO40ClzoeeJidywcNfbqTO2ZDxcxvFf15tv4O9aAM3uPo4Ou13A==}
@@ -463,10 +463,10 @@ packages:
       three:
         optional: true
 
-  '@pipecat-ai/websocket-transport@1.4.0':
-    resolution: {integrity: sha512-LCPTdeTCtZUgLno2LDdGF2Ei6lNMQf3ok3Q+xyIatjAlu6A3DNbodcaxLy1vogtMnHM0iZhXzitQAIup5lgiww==}
+  '@pipecat-ai/websocket-transport@1.5.0':
+    resolution: {integrity: sha512-I8cQpZx/jPcUnIHLen/UrJxcx4LWwt1iKChY7FvbjIGuN2Z7C0R6qwPOMnooL7yvXFU/HTNHZwqSJRE+0D1aRA==}
     peerDependencies:
-      '@pipecat-ai/client-js': ~1.4.0
+      '@pipecat-ai/client-js': ~1.5.0
 
   '@protobuf-ts/plugin@2.11.1':
     resolution: {integrity: sha512-HyuprDcw0bEEJqkOWe1rnXUP0gwYLij8YhPuZyZk6cJbIgc/Q0IFgoHQxOXNIXAcXM4Sbehh6kjVnCzasElw1A==}
@@ -1673,8 +1673,8 @@ packages:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
     hasBin: true
 
-  vite@7.2.4:
-    resolution: {integrity: sha512-NL8jTlbo0Tn4dUEXEsUg8KeyG/Lkmc4Fnzb8JXN/Ykm9G4HNImjtABMJgkQoVjOBN/j2WAwDTRytdqJbZsah7w==}
+  vite@7.2.6:
+    resolution: {integrity: sha512-tI2l/nFHC5rLh7+5+o7QjKjSR04ivXDF4jcgV0f/bTQ+OJiITy5S6gaynVsEM+7RqzufMnVbIon6Sr5x1SDYaQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -2050,7 +2050,7 @@ snapshots:
     dependencies:
       react: 19.2.0
 
-  '@pipecat-ai/client-js@1.4.1':
+  '@pipecat-ai/client-js@1.5.0':
     dependencies:
       '@types/events': 3.0.3
       bowser: 2.13.0
@@ -2059,9 +2059,9 @@ snapshots:
       typed-emitter: 2.1.0
       uuid: 10.0.0
 
-  '@pipecat-ai/client-react@1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.4.1)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@pipecat-ai/client-react@1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.5.0)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@pipecat-ai/client-js': 1.4.1
+      '@pipecat-ai/client-js': 1.5.0
       jotai: 2.15.1(@babel/core@7.28.5)(@babel/template@7.27.2)(@types/react@19.2.7)(react@19.2.0)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
@@ -2070,11 +2070,11 @@ snapshots:
       - '@babel/template'
       - '@types/react'
 
-  '@pipecat-ai/voice-ui-kit@0.5.0(@daily-co/daily-js@0.83.1)(@pipecat-ai/client-js@1.4.1)(@pipecat-ai/client-react@1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.4.1)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@pipecat-ai/voice-ui-kit@0.5.0(@daily-co/daily-js@0.83.1)(@pipecat-ai/client-js@1.5.0)(@pipecat-ai/client-react@1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.5.0)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@daily-co/daily-js': 0.83.1
-      '@pipecat-ai/client-js': 1.4.1
-      '@pipecat-ai/client-react': 1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.4.1)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@pipecat-ai/client-js': 1.5.0
+      '@pipecat-ai/client-react': 1.1.0(@babel/core@7.28.5)(@babel/template@7.27.2)(@pipecat-ai/client-js@1.5.0)(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@radix-ui/react-dropdown-menu': 2.1.16(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@radix-ui/react-popover': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@radix-ui/react-progress': 1.1.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -2100,10 +2100,10 @@ snapshots:
       - immer
       - use-sync-external-store
 
-  '@pipecat-ai/websocket-transport@1.4.0(@pipecat-ai/client-js@1.4.1)':
+  '@pipecat-ai/websocket-transport@1.5.0(@pipecat-ai/client-js@1.5.0)':
     dependencies:
       '@daily-co/daily-js': 0.83.1
-      '@pipecat-ai/client-js': 1.4.1
+      '@pipecat-ai/client-js': 1.5.0
       '@protobuf-ts/plugin': 2.11.1
       '@protobuf-ts/runtime': 2.11.1
       x-law: 0.3.1
@@ -2663,12 +2663,12 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.1.17
       '@tailwindcss/oxide-win32-x64-msvc': 4.1.17
 
-  '@tailwindcss/vite@4.1.17(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))':
+  '@tailwindcss/vite@4.1.17(vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))':
     dependencies:
       '@tailwindcss/node': 4.1.17
       '@tailwindcss/oxide': 4.1.17
       tailwindcss: 4.1.17
-      vite: 7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)
+      vite: 7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)
 
   '@tanstack/query-core@5.90.11': {}
 
@@ -2771,7 +2771,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitejs/plugin-react@5.1.1(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))':
+  '@vitejs/plugin-react@5.1.1(vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.28.5)
@@ -2779,7 +2779,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.47
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)
+      vite: 7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -3165,7 +3165,7 @@ snapshots:
 
   uuid@10.0.0: {}
 
-  vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2):
+  vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.3)

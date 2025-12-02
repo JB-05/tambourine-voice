@@ -4,7 +4,7 @@ Buffers transcription text until the user explicitly stops recording,
 then emits a single consolidated transcription for LLM cleanup.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pipecat.frames.frames import Frame, TranscriptionFrame
@@ -55,7 +55,7 @@ class TranscriptionBufferProcessor(FrameProcessor):
             # Client explicitly stopped recording - flush the buffer
             if self._buffer.strip():
                 logger.info(f"Stop-recording received, flushing buffer: '{self._buffer.strip()}'")
-                timestamp = datetime.now(timezone.utc).isoformat()
+                timestamp = datetime.now(UTC).isoformat()
                 consolidated_frame = TranscriptionFrame(
                     text=self._buffer.strip(),
                     user_id=self._last_user_id,

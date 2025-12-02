@@ -87,4 +87,9 @@ export const tauriAPI = {
 	async clearHistory(): Promise<void> {
 		return invoke("clear_history");
 	},
+
+	// Overlay API
+	async resizeOverlay(width: number, height: number): Promise<void> {
+		return invoke("resize_overlay", { width, height });
+	},
 };

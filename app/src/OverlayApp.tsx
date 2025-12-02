@@ -41,6 +41,23 @@ function RecordingControl() {
 	const { isRecording, setRecording, setWaitingForResponse } =
 		useRecordingStore();
 	const clientRef = useRef(client);
+	const containerRef = useRef<HTMLDivElement>(null);
+
+	// ResizeObserver to auto-resize window to fit content
+	useEffect(() => {
+		if (!containerRef.current) return;
+
+		const observer = new ResizeObserver((entries) => {
+			const entry = entries[0];
+			if (!entry) return;
+			const { width, height } = entry.contentRect;
+			// Add small padding for the window
+			tauriAPI.resizeOverlay(Math.ceil(width) + 16, Math.ceil(height) + 16);
+		});
+
+		observer.observe(containerRef.current);
+		return () => observer.disconnect();
+	}, []);
 
 	// Keep client ref in sync (still needed since client comes from provider)
 	useEffect(() => {
@@ -187,19 +204,24 @@ function RecordingControl() {
 	]);
 
 	return (
-		<UserAudioComponent
-			onClick={handleClick}
-			isMicEnabled={isRecording}
-			noDevicePicker={true}
-			noVisualizer={!isRecording}
-			visualizerProps={{
-				barColor: "#ffffff",
-				backgroundColor: "#000000",
-			}}
-			classNames={{
-				button: "bg-black text-white hover:bg-gray-900",
-			}}
-		/>
+		<div
+			ref={containerRef}
+			style={{ width: "fit-content", height: "fit-content" }}
+		>
+			<UserAudioComponent
+				onClick={handleClick}
+				isMicEnabled={isRecording}
+				noDevicePicker={true}
+				noVisualizer={!isRecording}
+				visualizerProps={{
+					barColor: "#ffffff",
+					backgroundColor: "#000000",
+				}}
+				classNames={{
+					button: "bg-black text-white hover:bg-gray-900",
+				}}
+			/>
+		</div>
 	);
 }
 

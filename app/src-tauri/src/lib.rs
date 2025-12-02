@@ -43,6 +43,7 @@ pub fn run() {
             commands::history::get_history,
             commands::history::delete_history_entry,
             commands::history::clear_history,
+            commands::overlay::resize_overlay,
         ])
         .setup(|app| {
             // Initialize settings manager and history storage
@@ -63,7 +64,7 @@ pub fn run() {
                 tauri::WebviewUrl::App("overlay.html".into()),
             )
             .title("Voice Overlay")
-            .inner_size(200.0, 80.0)
+            .inner_size(80.0, 80.0)
             .decorations(false)
             .transparent(true)
             .always_on_top(true)
@@ -77,7 +78,7 @@ pub fn run() {
             if let Ok(Some(monitor)) = overlay.current_monitor() {
                 let size = monitor.size();
                 let scale = monitor.scale_factor();
-                let x = (size.width as f64 / scale) as i32 - 220;
+                let x = (size.width as f64 / scale) as i32 - 100;
                 let y = (size.height as f64 / scale) as i32 - 100;
                 let _ = overlay.set_position(tauri::Position::Logical(tauri::LogicalPosition {
                     x: x as f64,
