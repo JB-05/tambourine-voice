@@ -1,8 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-
-export type OverlayState = "idle" | "recording";
 
 export interface TypeTextResult {
 	success: boolean;
@@ -47,17 +44,6 @@ export const tauriAPI = {
 
 	async onStopRecording(callback: () => void): Promise<UnlistenFn> {
 		return listen("recording-stop", callback);
-	},
-
-	setOverlayState(state: OverlayState): void {
-		// Control overlay visibility based on state
-		const overlayWindow = getCurrentWebviewWindow();
-		if (state === "idle") {
-			// Hide overlay after a short delay
-			setTimeout(() => {
-				overlayWindow.hide().catch(console.error);
-			}, 1000);
-		}
 	},
 
 	// Settings API

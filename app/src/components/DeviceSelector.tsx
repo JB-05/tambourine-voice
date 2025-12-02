@@ -1,4 +1,4 @@
-import { Select, Text } from "@mantine/core";
+import { Select } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useSettings, useUpdateSelectedMic } from "../lib/queries";
 
@@ -61,11 +61,23 @@ export function DeviceSelector() {
 	};
 
 	if (isLoading || settingsLoading) {
-		return <Text c="dimmed">Loading microphones...</Text>;
+		return (
+			<div>
+				<p className="settings-label">Microphone</p>
+				<p className="settings-description">Loading microphones...</p>
+			</div>
+		);
 	}
 
 	if (error) {
-		return <Text c="red">{error}</Text>;
+		return (
+			<div>
+				<p className="settings-label">Microphone</p>
+				<p className="settings-description" style={{ color: "#ef4444" }}>
+					{error}
+				</p>
+			</div>
+		);
 	}
 
 	const selectData = [
@@ -86,6 +98,43 @@ export function DeviceSelector() {
 			value={settings?.selected_mic_id ?? "default"}
 			onChange={handleChange}
 			allowDeselect={false}
+			styles={{
+				root: {
+					"--input-bg": "#1a1a1a",
+					"--input-bd": "#2a2a2a",
+				},
+				label: {
+					color: "var(--text-primary)",
+					fontWeight: 500,
+					marginBottom: 4,
+				},
+				description: {
+					color: "var(--text-muted)",
+					marginBottom: 8,
+				},
+				input: {
+					backgroundColor: "var(--bg-elevated)",
+					borderColor: "var(--border-default)",
+					color: "var(--text-primary)",
+					"&:focus": {
+						borderColor: "var(--accent-primary)",
+					},
+				},
+				dropdown: {
+					backgroundColor: "var(--bg-card)",
+					borderColor: "var(--border-default)",
+				},
+				option: {
+					color: "var(--text-primary)",
+					"&[data-selected]": {
+						backgroundColor: "var(--accent-primary)",
+						color: "#000",
+					},
+					"&[data-hovered]": {
+						backgroundColor: "var(--bg-elevated)",
+					},
+				},
+			}}
 		/>
 	);
 }

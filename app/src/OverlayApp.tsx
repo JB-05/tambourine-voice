@@ -6,7 +6,13 @@ import {
 } from "@pipecat-ai/client-react";
 import { ThemeProvider, UserAudioComponent } from "@pipecat-ai/voice-ui-kit";
 import { WebSocketTransport } from "@pipecat-ai/websocket-transport";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useEffectEvent,
+	useRef,
+	useState,
+} from "react";
 import {
 	useAddHistoryEntry,
 	useServerUrl,
@@ -92,19 +98,23 @@ function RecordingControl() {
 		startResponseTimeout();
 	}, [setRecording, setWaitingForResponse, startResponseTimeout]);
 
+	// Effect events for stable handlers - always have access to latest values
+	const onStartRecordingEvent = useEffectEvent(() => {
+		startRecording();
+	});
+
+	const onStopRecordingEvent = useEffectEvent(() => {
+		stopRecording();
+	});
+
 	// Hotkey events from Rust backend - register ONCE
 	useEffect(() => {
 		let unlistenStart: (() => void) | undefined;
 		let unlistenStop: (() => void) | undefined;
 
 		const setup = async () => {
-			unlistenStart = await tauriAPI.onStartRecording(() => {
-				startRecording();
-			});
-
-			unlistenStop = await tauriAPI.onStopRecording(() => {
-				stopRecording();
-			});
+			unlistenStart = await tauriAPI.onStartRecording(onStartRecordingEvent);
+			unlistenStop = await tauriAPI.onStopRecording(onStopRecordingEvent);
 		};
 
 		setup();
@@ -113,7 +123,7 @@ function RecordingControl() {
 			unlistenStart?.();
 			unlistenStop?.();
 		};
-	}, [startRecording, stopRecording]);
+	}, []);
 
 	// Click handler (toggle mode)
 	const handleClick = useCallback(() => {
@@ -136,8 +146,6 @@ function RecordingControl() {
 
 			// Save to history
 			addHistoryEntry.mutate(text);
-
-			tauriAPI.setOverlayState("idle");
 
 			// Disconnect after receiving response
 			setWaitingForResponse(false);

@@ -15,8 +15,8 @@
 			{
 				"title": "Voice Dictation",
 				"label": "main",
-				"width": 450,
-				"height": 350,
+				"width": 800,
+				"height": 550,
 				"resizable": true,
 				"fullscreen": false,
 				"center": true

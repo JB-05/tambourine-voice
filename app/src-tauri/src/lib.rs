@@ -70,7 +70,7 @@ pub fn run() {
             .skip_taskbar(true)
             .resizable(false)
             .focused(false)
-            .visible(false)
+            .visible(true)
             .build()?;
 
             // Position bottom-right
@@ -184,7 +184,6 @@ fn build_global_shortcut_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
                         if sound_enabled {
                             audio::play_sound(audio::SoundType::RecordingStart);
                         }
-                        show_overlay(app);
                         let _ = app.emit("recording-start", ());
                     }
                 }
@@ -200,7 +199,6 @@ fn build_global_shortcut_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
                             if sound_enabled {
                                 audio::play_sound(audio::SoundType::RecordingStart);
                             }
-                            show_overlay(app);
                             let _ = app.emit("recording-start", ());
                         }
                     }
@@ -219,11 +217,4 @@ fn build_global_shortcut_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
             }
         })
         .build()
-}
-
-fn show_overlay(app: &AppHandle) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.show();
-        let _ = overlay.set_always_on_top(true);
-    }
 }

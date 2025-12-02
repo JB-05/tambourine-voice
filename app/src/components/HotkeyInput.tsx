@@ -1,4 +1,3 @@
-import { Badge, Group, Paper, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useCallback } from "react";
 import type { HotkeyConfig } from "../lib/tauri";
@@ -74,56 +73,43 @@ export function HotkeyInput({
 		}
 	}, [disabled, startCapture]);
 
+	const formatKey = (key: string) => {
+		return key.charAt(0).toUpperCase() + key.slice(1);
+	};
+
 	return (
 		<div>
-			<Text size="sm" fw={500} mb={4}>
-				{label}
-			</Text>
-			{description && (
-				<Text size="xs" c="dimmed" mb={8}>
-					{description}
-				</Text>
-			)}
-			<UnstyledButton
+			<p className="settings-label">{label}</p>
+			{description && <p className="settings-description">{description}</p>}
+			<button
+				type="button"
 				onClick={handleClick}
 				onKeyDown={handleKeyDown}
 				onBlur={handleBlur}
 				disabled={disabled}
-				style={{ width: "100%" }}
+				className={`hotkey-display ${isCapturing ? "capturing" : ""}`}
+				style={{
+					width: "100%",
+					marginTop: 8,
+					cursor: disabled ? "not-allowed" : "pointer",
+					opacity: disabled ? 0.5 : 1,
+				}}
 			>
-				<Paper
-					p="sm"
-					withBorder
-					style={{
-						cursor: disabled ? "not-allowed" : "pointer",
-						opacity: disabled ? 0.5 : 1,
-						backgroundColor: isCapturing
-							? "var(--mantine-color-blue-light)"
-							: undefined,
-					}}
-				>
-					<Group justify="space-between">
-						<Group gap="xs">
-							{isCapturing ? (
-								<Text size="sm" c="blue">
-									Press a key combination...
-								</Text>
-							) : (
-								value.modifiers.concat([value.key]).map((part) => (
-									<Badge key={part} variant="light">
-										{part.charAt(0).toUpperCase() + part.slice(1)}
-									</Badge>
-								))
-							)}
-						</Group>
-						{!isCapturing && (
-							<Text size="xs" c="dimmed">
-								Click to change
-							</Text>
-						)}
-					</Group>
-				</Paper>
-			</UnstyledButton>
+				{isCapturing ? (
+					<span style={{ color: "var(--accent-primary)", fontSize: 14 }}>
+						Press a key combination...
+					</span>
+				) : (
+					<>
+						{value.modifiers.concat([value.key]).map((part) => (
+							<span key={part} className="badge">
+								{formatKey(part)}
+							</span>
+						))}
+						<span className="hotkey-hint">Click to change</span>
+					</>
+				)}
+			</button>
 		</div>
 	);
 }

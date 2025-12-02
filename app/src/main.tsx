@@ -1,4 +1,4 @@
-import { MantineProvider } from "@mantine/core";
+import { createTheme, MantineProvider } from "@mantine/core";
 import "@mantine/core/styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
@@ -8,6 +8,41 @@ import "./styles.css";
 
 const queryClient = new QueryClient();
 
+const darkTheme = createTheme({
+	primaryColor: "orange",
+	fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+	headings: {
+		fontFamily: "'Sora', 'DM Sans', sans-serif",
+		fontWeight: "600",
+	},
+	colors: {
+		dark: [
+			"#C1C2C5",
+			"#A6A7AB",
+			"#909296",
+			"#5C5F66",
+			"#373A40",
+			"#2C2E33",
+			"#1A1A1A",
+			"#111111",
+			"#0A0A0A",
+			"#000000",
+		],
+	},
+	components: {
+		Paper: {
+			defaultProps: {
+				bg: "#111111",
+			},
+		},
+		Card: {
+			defaultProps: {
+				bg: "#111111",
+			},
+		},
+	},
+});
+
 const rootElement = document.getElementById("root");
 if (!rootElement) {
 	throw new Error("Root element not found");
@@ -16,7 +51,7 @@ if (!rootElement) {
 createRoot(rootElement).render(
 	<StrictMode>
 		<QueryClientProvider client={queryClient}>
-			<MantineProvider>
+			<MantineProvider theme={darkTheme} defaultColorScheme="dark">
 				<App />
 			</MantineProvider>
 		</QueryClientProvider>
