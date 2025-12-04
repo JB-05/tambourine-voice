@@ -1,7 +1,9 @@
 use arboard::Clipboard;
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
+use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
+use tauri::AppHandle;
 
 const SERVER_URL: &str = "ws://127.0.0.1:8765";
 
@@ -11,11 +13,19 @@ pub async fn get_server_url() -> String {
 }
 
 #[tauri::command]
-pub async fn type_text(text: String) -> Result<(), String> {
-    // Run keyboard operations in blocking thread
-    tokio::task::spawn_blocking(move || type_text_blocking(&text))
-        .await
-        .map_err(|e| e.to_string())?
+pub async fn type_text(app: AppHandle, text: String) -> Result<(), String> {
+    // macOS HIToolbox APIs (used by enigo) must run on the main thread
+    // Use a channel to get the result back from the main thread
+    let (tx, rx) = mpsc::channel::<Result<(), String>>();
+
+    app.run_on_main_thread(move || {
+        let result = type_text_blocking(&text);
+        let _ = tx.send(result);
+    })
+    .map_err(|e| e.to_string())?;
+
+    // Wait for result from main thread
+    rx.recv().map_err(|e| e.to_string())?
 }
 
 fn type_text_blocking(text: &str) -> Result<(), String> {
