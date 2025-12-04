@@ -93,29 +93,51 @@ function RecordingControl() {
 		return () => observer.disconnect();
 	}, []);
 
-	// Connect to server on startup
+	// Connect to server on startup with retry logic
 	useEffect(() => {
 		if (!client || !serverUrl) return;
 		const currentState = useRecordingStore.getState().state;
 		if (currentState !== "disconnected") return;
 
-		const connect = async () => {
+		let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
+		let cancelled = false;
+
+		const connectWithRetry = async () => {
+			if (cancelled) return;
+
+			const state = useRecordingStore.getState().state;
+			if (state !== "disconnected") return;
+
 			startConnecting();
 			try {
 				await client.connect({ wsUrl: serverUrl });
 			} catch (error) {
 				console.error("Failed to connect:", error);
 				handleDisconnected();
+
+				// Retry after 2 seconds if still disconnected
+				if (!cancelled) {
+					retryTimeoutId = setTimeout(() => {
+						connectWithRetry();
+					}, 2000);
+				}
 			}
 		};
 
-		connect();
+		connectWithRetry();
+
+		return () => {
+			cancelled = true;
+			if (retryTimeoutId) {
+				clearTimeout(retryTimeoutId);
+			}
+		};
 	}, [client, serverUrl, startConnecting, handleDisconnected]);
 
 	// Handle start/stop recording from hotkeys
-	const onStartRecording = useCallback(() => {
+	const onStartRecording = useCallback(async () => {
 		console.log("[Recording] Starting recording...");
-		const success = startRecording();
+		const success = await startRecording();
 		console.log("[Recording] Start recording result:", success);
 	}, [startRecording]);
 
