@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter
 from loguru import logger
+from pipecat.frames.frames import ManuallySwitchServiceFrame
+from pipecat.processors.frame_processor import FrameDirection
 from pydantic import BaseModel
 
 from processors.llm_cleanup import (
@@ -43,6 +46,21 @@ _settings: Settings | None = None
 # Track current active providers
 _current_stt_provider: STTProvider | None = None
 _current_llm_provider: LLMProvider | None = None
+
+# Event to signal when pipeline has started (received StartFrame)
+_pipeline_started_event: asyncio.Event = asyncio.Event()
+
+
+def set_pipeline_started() -> None:
+    """Signal that the pipeline has started (received StartFrame)."""
+    _pipeline_started_event.set()
+    logger.info("Pipeline started event set")
+
+
+def reset_pipeline_started() -> None:
+    """Reset the pipeline started event (on disconnect)."""
+    _pipeline_started_event.clear()
+    logger.info("Pipeline started event cleared")
 
 
 def set_llm_converter(converter: TranscriptionToLLMConverter) -> None:
@@ -249,6 +267,9 @@ async def switch_stt_provider(data: SwitchProviderRequest) -> SwitchProviderResp
     if not _stt_switcher or not _stt_services:
         return SwitchProviderResponse(success=False, error="STT switcher not initialized")
 
+    # Wait for pipeline to start before switching
+    await _pipeline_started_event.wait()
+
     try:
         provider = STTProvider(data.provider)
     except ValueError:
@@ -260,7 +281,10 @@ async def switch_stt_provider(data: SwitchProviderRequest) -> SwitchProviderResp
         )
 
     service = _stt_services[provider]
-    _stt_switcher.strategy.active_service = service
+    await _stt_switcher.process_frame(
+        ManuallySwitchServiceFrame(service=service),
+        FrameDirection.DOWNSTREAM,
+    )
     _current_stt_provider = provider
 
     logger.info("switched_stt_provider", provider=provider.value)
@@ -279,6 +303,9 @@ async def switch_llm_provider(data: SwitchProviderRequest) -> SwitchProviderResp
     if not _llm_switcher or not _llm_services:
         return SwitchProviderResponse(success=False, error="LLM switcher not initialized")
 
+    # Wait for pipeline to start before switching
+    await _pipeline_started_event.wait()
+
     try:
         provider = LLMProvider(data.provider)
     except ValueError:
@@ -290,7 +317,10 @@ async def switch_llm_provider(data: SwitchProviderRequest) -> SwitchProviderResp
         )
 
     service = _llm_services[provider]
-    _llm_switcher.strategy.active_service = service
+    await _llm_switcher.process_frame(
+        ManuallySwitchServiceFrame(service=service),
+        FrameDirection.DOWNSTREAM,
+    )
     _current_llm_provider = provider
 
     logger.info("switched_llm_provider", provider=provider.value)

@@ -24,6 +24,7 @@ from pipecat.frames.frames import (
     InputAudioRawFrame,
     MetricsFrame,
     OutputTransportMessageFrame,
+    StartFrame,
     TranscriptionFrame,
     UserSpeakingFrame,
     UserStartedSpeakingFrame,
@@ -41,7 +42,9 @@ from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 
 from api.config_server import (
     config_router,
+    reset_pipeline_started,
     set_llm_converter,
+    set_pipeline_started,
     set_service_switchers,
 )
 from config.settings import Settings
@@ -124,7 +127,11 @@ class TextResponseProcessor(FrameProcessor):
         """
         await super().process_frame(frame, direction)
 
-        if isinstance(frame, OutputTransportMessageFrame):
+        if isinstance(frame, StartFrame):
+            # Signal that pipeline is fully started (StartFrame has passed through all processors)
+            logger.info("Pipeline fully started (StartFrame passed through all processors)")
+            set_pipeline_started()
+        elif isinstance(frame, OutputTransportMessageFrame):
             data = frame.message.get("data", {})
             text = data.get("text", "")
             logger.info(f"Sending to client: '{text}'")
@@ -238,6 +245,7 @@ async def run_pipeline(webrtc_connection: SmallWebRTCConnection) -> None:
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(_transport: Any, client: Any) -> None:
         logger.info(f"Client disconnected: {client}")
+        reset_pipeline_started()
         await task.cancel()
 
     # Run the pipeline
