@@ -36,8 +36,6 @@ from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.stt_service import WebsocketSTTService
 from pipecat.utils.time import time_now_iso8601
 
-from processors.frames import FinalizeSTTFrame
-
 
 class NVidiaWebSocketSTTService(WebsocketSTTService):
     """NVIDIA Parakeet streaming speech-to-text service.
@@ -183,14 +181,6 @@ class NVidiaWebSocketSTTService(WebsocketSTTService):
             await super().process_frame(frame, direction)
             return
 
-        # Handle FinalizeSTTFrame - recording is ending, send hard reset
-        # This handles the case where user stops recording mid-speech (no VAD silence)
-        if isinstance(frame, FinalizeSTTFrame):
-            self._waiting_for_final = True
-            self._vad_stopped_time = time.time()
-            await self._send_reset(finalize=True)
-            return
-
         # Handle UserStoppedSpeakingFrame - hold it and send hard reset
         if isinstance(frame, UserStoppedSpeakingFrame):
             if self._waiting_for_final:
@@ -208,13 +198,18 @@ class NVidiaWebSocketSTTService(WebsocketSTTService):
         # All other frames pass through normally
         await super().process_frame(frame, direction)
 
-        # Trigger SOFT reset on VAD silence detection.
-        # VAD fires after ~200ms of silence, so all speech audio has already
-        # been sent. Soft reset returns current text quickly without forcing
-        # decoder finalization (no keep_all_outputs=True), preserving decoder state.
+        # Handle VADUserStoppedSpeakingFrame - the reset type depends on direction:
+        # - UPSTREAM (manual stop from transcription_buffer): Hard reset to force finalization
+        # - DOWNSTREAM (natural VAD silence from transport): Soft reset for quick return
         if isinstance(frame, VADUserStoppedSpeakingFrame):
             self._waiting_for_final = True
-            await self._send_reset(finalize=False)  # Soft reset
+            if direction == FrameDirection.UPSTREAM:
+                # Manual stop - hard reset to capture trailing words
+                self._vad_stopped_time = time.time()
+                await self._send_reset(finalize=True)
+            else:
+                # Natural VAD silence - soft reset for quick response
+                await self._send_reset(finalize=False)
 
     async def _send_reset(self, finalize: bool = True) -> None:
         """Send reset signal to trigger transcription.

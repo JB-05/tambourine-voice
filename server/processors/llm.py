@@ -8,12 +8,10 @@ from openai.types.chat import (
 )
 from pipecat.frames.frames import (
     Frame,
+    LLMContextFrame,
     TranscriptionFrame,
 )
-from pipecat.processors.aggregators.openai_llm_context import (
-    OpenAILLMContext,
-    OpenAILLMContextFrame,
-)
+from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 from utils.logger import logger
@@ -162,7 +160,7 @@ def combine_prompt_sections(
 
 
 class TranscriptionToLLMConverter(FrameProcessor):
-    """Converts TranscriptionFrame to OpenAILLMContextFrame for LLM formatting.
+    """Converts TranscriptionFrame to LLMContextFrame for LLM formatting.
 
     This processor receives accumulated transcription text and converts it
     to an LLM context with the formatting system prompt, triggering the LLM
@@ -231,8 +229,8 @@ class TranscriptionToLLMConverter(FrameProcessor):
             if text and text.strip():
                 logger.debug(f"Converting transcription to LLM context: {text[:50]}...")
 
-                # Create OpenAI-compatible context with formatting prompt
-                context = OpenAILLMContext(
+                # Create universal context with formatting prompt
+                context = LLMContext(
                     messages=[
                         ChatCompletionSystemMessageParam(role="system", content=self.system_prompt),
                         ChatCompletionUserMessageParam(role="user", content=text),
@@ -240,7 +238,7 @@ class TranscriptionToLLMConverter(FrameProcessor):
                 )
 
                 # Push context frame to trigger LLM processing
-                await self.push_frame(OpenAILLMContextFrame(context=context), direction)
+                await self.push_frame(LLMContextFrame(context=context), direction)
             return
 
         # Pass through all other frames unchanged

@@ -19,14 +19,12 @@ from typing import Any, Final
 from pipecat.frames.frames import (
     Frame,
     TranscriptionFrame,
-    UserStartedSpeakingFrame,
-    UserStoppedSpeakingFrame,
+    VADUserStoppedSpeakingFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.processors.frameworks.rtvi import RTVIServerMessageFrame
 from pipecat.transcriptions.language import Language
 
-from processors.frames import FinalizeSTTFrame
 from utils.logger import logger
 
 # Default timeout for waiting for STT transcriptions (can be overridden at runtime)
@@ -52,7 +50,6 @@ class RecordingState:
     buffer: str = ""
     user_id: str = "user"
     language: Language | None = None
-    speech_detected: bool = False
 
 
 @dataclass(frozen=True)
@@ -141,13 +138,7 @@ class TranscriptionBufferProcessor(FrameProcessor):
         """Process frames using state machine pattern."""
         await super().process_frame(frame, direction)
 
-        # Handle speech detection
-        if isinstance(frame, UserStartedSpeakingFrame):
-            self._handle_speech_started()
-            await self.push_frame(frame, direction)
-            return
-
-        if isinstance(frame, UserStoppedSpeakingFrame):
+        if isinstance(frame, VADUserStoppedSpeakingFrame):
             await self._handle_speech_stopped(direction)
             await self.push_frame(frame, direction)
             return
@@ -188,31 +179,21 @@ class TranscriptionBufferProcessor(FrameProcessor):
     async def _handle_stop_recording(self, direction: FrameDirection) -> None:
         """Handle stop-recording based on current state."""
         match self._state:
-            case RecordingState(buffer=buffer, speech_detected=speech_detected) as state:
-                if speech_detected:
-                    # Speech detected - wait for VAD to signal speech stopped
-                    # This handles the race condition where STT still has pending
-                    # transcriptions when stop-recording arrives
-                    logger.info(
-                        f"Stop-recording received, waiting for speech to stop "
-                        f"(buffer: '{buffer.strip()}')"
-                    )
-                    # Signal STT to finalize any pending transcription
-                    # This handles the case where user stops recording mid-speech
-                    # (before VAD detects silence)
-                    await self.push_frame(FinalizeSTTFrame(), FrameDirection.UPSTREAM)
-                    self._state = WaitingForSTTState(
-                        buffer=state.buffer,
-                        user_id=state.user_id,
-                        language=state.language,
-                        direction=direction,
-                    )
-                    self._timeout_task = asyncio.create_task(self._stt_timeout_handler(direction))
-                else:
-                    # No speech detected - send empty response
-                    logger.info("Stop-recording received, no speech detected, sending empty")
-                    await self._emit_empty_response(direction)
-                    self._state = IdleState()
+            case RecordingState() as state:
+                # Always enter waiting state - we'll handle empty buffers in draining
+                logger.info(
+                    f"Stop-recording received, waiting for STT to finalize "
+                    f"(buffer: '{state.buffer.strip()}')"
+                )
+                # Signal STT to finalize any pending transcription
+                await self.push_frame(VADUserStoppedSpeakingFrame(), FrameDirection.UPSTREAM)
+                self._state = WaitingForSTTState(
+                    buffer=state.buffer,
+                    user_id=state.user_id,
+                    language=state.language,
+                    direction=direction,
+                )
+                self._timeout_task = asyncio.create_task(self._stt_timeout_handler(direction))
 
             case WaitingForSTTState():
                 # Already waiting - ignore duplicate stop
@@ -222,19 +203,6 @@ class TranscriptionBufferProcessor(FrameProcessor):
                 # Not recording - send empty response
                 logger.warning("Stop-recording received while idle")
                 await self._emit_empty_response(direction)
-
-    def _handle_speech_started(self) -> None:
-        """Mark that speech was detected in current recording."""
-        match self._state:
-            case RecordingState() as state:
-                self._state = RecordingState(
-                    buffer=state.buffer,
-                    user_id=state.user_id,
-                    language=state.language,
-                    speech_detected=True,
-                )
-            case _:
-                pass  # Ignore speech events in other states
 
     async def _handle_speech_stopped(self, direction: FrameDirection) -> None:
         """Handle speech stopped from VAD based on current state."""
@@ -276,7 +244,6 @@ class TranscriptionBufferProcessor(FrameProcessor):
                     buffer=new_buffer,
                     user_id=frame.user_id,
                     language=frame.language,
-                    speech_detected=state.speech_detected,
                 )
                 logger.debug(f"Buffered transcription: '{frame.text}' (total: '{new_buffer}')")
 
