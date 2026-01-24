@@ -29,12 +29,13 @@ from protocol.providers import (
     AutoProvider,
     KnownLLMProvider,
     KnownSTTProvider,
+    LLMProviderId,
     LLMProviderSelection,
     OtherLLMProvider,
     OtherSTTProvider,
+    STTProviderId,
     STTProviderSelection,
 )
-from services.provider_registry import LLMProviderId, STTProviderId
 
 if TYPE_CHECKING:
     from pipecat.pipeline.llm_switcher import LLMSwitcher
@@ -113,7 +114,7 @@ class ConfigurationHandler:
             case AutoProvider():
                 if self._settings.auto_stt_provider is None:
                     logger.warning("No auto STT provider configured, no-op")
-                    await self._send_config_success(setting, "auto")
+                    await self._send_config_success(setting, selection)
                     return
                 try:
                     provider_id = STTProviderId(self._settings.auto_stt_provider)
@@ -147,7 +148,8 @@ class ConfigurationHandler:
         )
 
         logger.success(f"Switched STT provider to: {provider_id.value}")
-        await self._send_config_success(setting, provider_id.value)
+        # Echo back the original selection - client sent it, server validated it works
+        await self._send_config_success(setting, selection)
 
     async def _switch_llm_provider(self, selection: LLMProviderSelection) -> None:
         """Switch to a different LLM provider.
@@ -161,7 +163,7 @@ class ConfigurationHandler:
             case AutoProvider():
                 if self._settings.auto_llm_provider is None:
                     logger.warning("No auto LLM provider configured, no-op")
-                    await self._send_config_success(setting, "auto")
+                    await self._send_config_success(setting, selection)
                     return
                 try:
                     provider_id = LLMProviderId(self._settings.auto_llm_provider)
@@ -195,11 +197,18 @@ class ConfigurationHandler:
         )
 
         logger.success(f"Switched LLM provider to: {provider_id.value}")
-        await self._send_config_success(setting, provider_id.value)
+        # Echo back the original selection - client sent it, server validated it works
+        await self._send_config_success(setting, selection)
 
-    async def _send_config_success(self, setting: SettingName, value: str) -> None:
-        """Send a configuration success message to the client."""
-        message = ConfigUpdatedMessage(setting=setting, value=value)
+    async def _send_config_success(
+        self, setting: SettingName, value: STTProviderSelection | LLMProviderSelection
+    ) -> None:
+        """Send a configuration success message to the client.
+
+        The value is a selection type (AutoProvider or Known*Provider) that
+        matches the format sent by the client, ensuring symmetric serialization.
+        """
+        message = ConfigUpdatedMessage(setting=setting, value=value.model_dump(by_alias=True))
         frame = RTVIServerMessageFrame(data=message.model_dump())
         await self._rtvi.push_frame(frame)
 

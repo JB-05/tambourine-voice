@@ -44,6 +44,9 @@ export const AppEvents = {
 
 	// Overlay → Main: LLM error notification
 	llmError: "llm-error",
+
+	// Main → Overlay: Provider change request (pessimistic updates)
+	providerChangeRequest: "provider-change-request",
 } as const;
 
 // =============================================================================
@@ -58,21 +61,35 @@ export type ConnectionState =
 	| "recording"
 	| "processing";
 
-export type ConfigResponse =
-	| {
-			type: "config-updated";
-			setting: string;
-			value: unknown;
-	  }
-	| {
-			type: "config-error";
-			setting: string;
-			error: string;
-	  };
+/**
+ * Config response for successful updates.
+ * Value is parsed at runtime using Zod schemas in tauri.ts.
+ */
+export type ConfigUpdatedResponse = {
+	type: "config-updated";
+	setting: string;
+	value: unknown;
+};
+
+/**
+ * Config error response.
+ */
+export type ConfigErrorResponse = {
+	type: "config-error";
+	setting: string;
+	error: string;
+};
+
+export type ConfigResponse = ConfigUpdatedResponse | ConfigErrorResponse;
 
 export interface LLMErrorPayload {
 	message: string; // Full error message for toast
 	fatal: boolean;
+}
+
+export interface ProviderChangeRequestPayload {
+	providerType: "stt" | "llm";
+	value: string;
 }
 
 export interface EventPayloads {
@@ -88,6 +105,7 @@ export interface EventPayloads {
 	[AppEvents.reconnectResult]: { success: boolean; error?: string };
 	[AppEvents.historyChanged]: undefined;
 	[AppEvents.llmError]: LLMErrorPayload;
+	[AppEvents.providerChangeRequest]: ProviderChangeRequestPayload;
 }
 
 // =============================================================================

@@ -102,7 +102,7 @@ Example: `Feat: add support for Azure Speech provider`
 
 Client and server should evolve independently:
 
-- **Unknown messages**: Parse to an explicit `Unknown*` variant (never `None`), log at debug level, preserve raw data
+- **Unknown messages**: Parse to an explicit `Unknown*` variant (never `None`), log at warn level, preserve raw data
 - **Unknown enum values**: Use a fallback variant (e.g., `Unknown`) that preserves the raw value
 - **Unknown settings**: Use type guards to gracefully ignore unrecognized values from newer versions
 

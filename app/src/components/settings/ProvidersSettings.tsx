@@ -1,15 +1,40 @@
-import { Badge, Loader, Select, Slider, Text } from "@mantine/core";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Badge, Box, Group, Loader, Select, Slider, Text } from "@mantine/core";
+import { Check, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	useAvailableProviders,
 	useSettings,
-	useUpdateLLMProvider,
-	useUpdateSTTProvider,
+	useUpdateLLMProviderWithServer,
+	useUpdateSTTProviderWithServer,
 	useUpdateSTTTimeout,
 } from "../../lib/queries";
-import { tauriAPI } from "../../lib/tauri";
 
 const DEFAULT_STT_TIMEOUT = 0.8;
+
+// React Query mutation status type
+type MutationStatus = "idle" | "pending" | "success" | "error";
+
+function StatusIndicator({ status }: { status: MutationStatus }) {
+	if (status === "idle") return null;
+
+	return (
+		<Box style={{ display: "inline-flex", alignItems: "center" }}>
+			{status === "pending" && <Loader size="xs" />}
+			{status === "success" && (
+				<Check size={16} color="var(--mantine-color-green-6)" />
+			)}
+			{status === "error" && <X size={16} color="var(--mantine-color-red-6)" />}
+		</Box>
+	);
+}
+
+function ProviderBadge({ isLocal }: { isLocal: boolean }) {
+	return (
+		<Badge size="xs" variant="light" color={isLocal ? "teal" : "blue"}>
+			{isLocal ? "Local" : "Cloud"}
+		</Badge>
+	);
+}
 
 export function ProvidersSettings() {
 	const { data: settings, isLoading: isLoadingSettings } = useSettings();
@@ -18,43 +43,30 @@ export function ProvidersSettings() {
 
 	// Wait for settings (source of truth) and provider list (for options)
 	const isLoadingProviderData = isLoadingSettings || isLoadingProviders;
-	const updateSTTProvider = useUpdateSTTProvider();
-	const updateLLMProvider = useUpdateLLMProvider();
 	const updateSTTTimeout = useUpdateSTTTimeout();
 
-	const handleSTTProviderChange = useCallback(
-		(value: string | null) => {
-			if (!value) return;
-			// Save to Tauri, then notify overlay to sync via RTVI
-			updateSTTProvider.mutate(value, {
-				onSuccess: () => {
-					tauriAPI.emitSettingsChanged();
-				},
-			});
-		},
-		[updateSTTProvider],
-	);
+	// Provider mutations handle pessimistic updates automatically:
+	// - isPending: show spinner while waiting for server confirmation
+	// - isSuccess: show checkmark when server confirms
+	// - isError: show X if server rejects or times out
+	// - variables: the value user selected (for display during pending state)
+	const sttMutation = useUpdateSTTProviderWithServer();
+	const llmMutation = useUpdateLLMProviderWithServer();
 
-	const handleLLMProviderChange = useCallback(
-		(value: string | null) => {
-			if (!value) return;
-			// Save to Tauri, then notify overlay to sync via RTVI
-			updateLLMProvider.mutate(value, {
-				onSuccess: () => {
-					tauriAPI.emitSettingsChanged();
-				},
-			});
-		},
-		[updateLLMProvider],
-	);
+	const handleSTTProviderChange = (value: string | null) => {
+		if (!value || sttMutation.isPending) return;
+		sttMutation.mutate(value);
+	};
 
-	const handleSTTTimeoutChange = useCallback(
-		(value: number) => {
-			// Save to Tauri, which syncs to server
-			updateSTTTimeout.mutate(value);
-		},
-		[updateSTTTimeout],
-	);
+	const handleLLMProviderChange = (value: string | null) => {
+		if (!value || llmMutation.isPending) return;
+		llmMutation.mutate(value);
+	};
+
+	const handleSTTTimeoutChange = (value: number) => {
+		// Save to Tauri, which syncs to server
+		updateSTTTimeout.mutate(value);
+	};
 
 	// Get the current timeout value from settings, falling back to default
 	const currentTimeout = settings?.stt_timeout_seconds ?? DEFAULT_STT_TIMEOUT;
@@ -126,6 +138,16 @@ export function ProvidersSettings() {
 		[llmCloudProviders, llmLocalProviders],
 	);
 
+	// Get display value for dropdown:
+	// - During mutation: show what user selected (mutation.variables)
+	// - Otherwise: show confirmed value from store
+	const sttDisplayValue = sttMutation.isPending
+		? sttMutation.variables
+		: (settings?.stt_provider ?? "auto");
+	const llmDisplayValue = llmMutation.isPending
+		? llmMutation.variables
+		: (settings?.llm_provider ?? "auto");
+
 	// Determine if currently selected provider is local (only show badge for non-auto providers)
 	const selectedSttProvider = availableProviders?.stt.find(
 		(p) => p.value === settings?.stt_provider,
@@ -149,20 +171,28 @@ export function ProvidersSettings() {
 							Service for transcribing audio
 						</p>
 					</div>
-					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+					<Group gap="xs" align="center">
 						{isLoadingProviderData ? (
 							<Loader size="sm" color="gray" />
 						) : (
 							<>
+								<StatusIndicator status={sttMutation.status} />
 								<Select
 									data={sttProviderOptions}
-									value={settings?.stt_provider ?? "auto"}
+									value={sttDisplayValue}
 									onChange={handleSTTProviderChange}
 									placeholder="Select provider"
 									disabled={
-										sttCloudProviders.length === 0 &&
-										sttLocalProviders.length === 0
+										sttMutation.isPending ||
+										(sttCloudProviders.length === 0 &&
+											sttLocalProviders.length === 0)
 									}
+									rightSection={
+										!isSttProviderAuto && settings?.stt_provider ? (
+											<ProviderBadge isLocal={isSttProviderLocal} />
+										) : undefined
+									}
+									rightSectionWidth={60}
 									styles={{
 										input: {
 											backgroundColor: "var(--bg-elevated)",
@@ -171,38 +201,37 @@ export function ProvidersSettings() {
 										},
 									}}
 								/>
-								{!isSttProviderAuto && settings?.stt_provider && (
-									<Badge
-										size="xs"
-										variant="light"
-										color={isSttProviderLocal ? "teal" : "blue"}
-									>
-										{isSttProviderLocal ? "Local" : "Cloud"}
-									</Badge>
-								)}
 							</>
 						)}
-					</div>
+					</Group>
 				</div>
 				<div className="settings-row" style={{ marginTop: 16 }}>
 					<div>
 						<p className="settings-label">Large Language Model (LLM)</p>
 						<p className="settings-description">Service for text formatting</p>
 					</div>
-					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+					<Group gap="xs" align="center">
 						{isLoadingProviderData ? (
 							<Loader size="sm" color="gray" />
 						) : (
 							<>
+								<StatusIndicator status={llmMutation.status} />
 								<Select
 									data={llmProviderOptions}
-									value={settings?.llm_provider ?? "auto"}
+									value={llmDisplayValue}
 									onChange={handleLLMProviderChange}
 									placeholder="Select provider"
 									disabled={
-										llmCloudProviders.length === 0 &&
-										llmLocalProviders.length === 0
+										llmMutation.isPending ||
+										(llmCloudProviders.length === 0 &&
+											llmLocalProviders.length === 0)
 									}
+									rightSection={
+										!isLlmProviderAuto && settings?.llm_provider ? (
+											<ProviderBadge isLocal={isLlmProviderLocal} />
+										) : undefined
+									}
+									rightSectionWidth={60}
 									styles={{
 										input: {
 											backgroundColor: "var(--bg-elevated)",
@@ -211,18 +240,9 @@ export function ProvidersSettings() {
 										},
 									}}
 								/>
-								{!isLlmProviderAuto && settings?.llm_provider && (
-									<Badge
-										size="xs"
-										variant="light"
-										color={isLlmProviderLocal ? "teal" : "blue"}
-									>
-										{isLlmProviderLocal ? "Local" : "Cloud"}
-									</Badge>
-								)}
 							</>
 						)}
-					</div>
+					</Group>
 				</div>
 				<div className="settings-row" style={{ marginTop: 16 }}>
 					<div style={{ flex: 1 }}>

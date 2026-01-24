@@ -1,13 +1,28 @@
 import { PipecatClient, RTVIEvent } from "@pipecat-ai/client-js";
 import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
+import { match } from "ts-pattern";
 import {
 	type ActorRefFrom,
+	type AnyEventObject,
 	assign,
 	fromCallback,
 	fromPromise,
 	setup,
 } from "xstate";
-import { type ConnectionState, configAPI, tauriAPI } from "../lib/tauri";
+import type { ProviderChangeRequestPayload } from "../lib/events";
+import {
+	matchSendResult,
+	safeSendClientMessage,
+} from "../lib/safeSendClientMessage";
+import {
+	type ConnectionState,
+	configAPI,
+	type LLMProviderSelection,
+	type STTProviderSelection,
+	tauriAPI,
+	toLLMProviderSelection,
+	toSTTProviderSelection,
+} from "../lib/tauri";
 
 /**
  * Clears the transport's keepAliveInterval to prevent "InvalidStateError" spam.
@@ -266,6 +281,106 @@ const disconnectListenerActor = fromCallback<
 	};
 });
 
+// =============================================================================
+// Provider Change Listener Actor
+// =============================================================================
+
+// Discriminated union for type-safe config messages (provider switching via RTVI)
+type ConfigMessage =
+	| { type: "set-stt-provider"; data: { provider: STTProviderSelection } }
+	| { type: "set-llm-provider"; data: { provider: LLMProviderSelection } };
+
+/**
+ * Send config messages to the server via RTVI.
+ * Stops on first failure to allow reconnection to handle re-syncing.
+ */
+function sendConfigMessages(
+	client: PipecatClient,
+	messages: ConfigMessage[],
+	onCommunicationError?: (error: string) => void,
+): void {
+	for (const { type, data } of messages) {
+		const result = safeSendClientMessage(
+			client,
+			type,
+			data,
+			onCommunicationError,
+		);
+		// If a message fails to send, stop sending further messages
+		// The reconnection will handle re-syncing all settings
+		const shouldContinue = matchSendResult(result, {
+			onSuccess: () => true,
+			onNotReady: () => false,
+			onSendFailed: () => false,
+		});
+		if (!shouldContinue) {
+			break;
+		}
+	}
+}
+
+/**
+ * Maps provider type to the corresponding setting name for error reporting.
+ */
+function getSettingNameFromProviderType(
+	providerType: "stt" | "llm",
+): "stt-provider" | "llm-provider" {
+	return providerType === "stt" ? "stt-provider" : "llm-provider";
+}
+
+/**
+ * Actor that listens for provider change requests from the main window.
+ * Only active in the 'idle' state when the client is connected and ready.
+ *
+ * This replaces the useEffect-based listener in OverlayApp.tsx which suffered
+ * from stale closure issues - the callback would capture an old `client` reference
+ * and report "Not connected" even when connected.
+ *
+ * Benefits of using an XState actor:
+ * - Fresh client reference from machine context on each invocation
+ * - Automatic cleanup when exiting idle state (no orphaned listeners)
+ * - Guaranteed to only run when client is valid (idle state invariant)
+ */
+const providerChangeListenerActor = fromCallback<
+	AnyEventObject, // Doesn't send events back to machine (but XState requires non-never type)
+	{ client: PipecatClient }
+>(({ input }) => {
+	const { client } = input;
+
+	const handleProviderChange = (payload: ProviderChangeRequestPayload) => {
+		// Client is guaranteed non-null because we're in idle state
+		const message: ConfigMessage = match(payload.providerType)
+			.with("stt", () => ({
+				type: "set-stt-provider" as const,
+				data: { provider: toSTTProviderSelection(payload.value) },
+			}))
+			.with("llm", () => ({
+				type: "set-llm-provider" as const,
+				data: { provider: toLLMProviderSelection(payload.value) },
+			}))
+			.exhaustive();
+
+		sendConfigMessages(client, [message], (error) => {
+			tauriAPI.emitConfigResponse({
+				type: "config-error",
+				setting: getSettingNameFromProviderType(payload.providerType),
+				error,
+			});
+		});
+	};
+
+	// Set up listener
+	let unlisten: (() => void) | undefined;
+	tauriAPI.onProviderChangeRequest(handleProviderChange).then((fn) => {
+		unlisten = fn;
+	});
+
+	// Cleanup on state exit
+	return () => {
+		unlisten?.();
+	};
+});
+
 export const connectionMachine = setup({
 	types: {
 		context: {} as ConnectionContext,
@@ -275,6 +390,7 @@ export const connectionMachine = setup({
 		createClient: createClientActor,
 		connect: connectActor,
 		disconnectListener: disconnectListenerActor,
+		providerChangeListener: providerChangeListenerActor,
 	},
 	actions: {
 		// Emit connection state to main window via Tauri events
@@ -410,13 +526,22 @@ export const connectionMachine = setup({
 				{ type: "emitReconnectResult", params: { success: true } },
 				{ type: "logState", params: { state: "idle" } },
 			],
-			invoke: {
-				// Use disconnect listener - does NOT call connect()
-				src: "disconnectListener",
-				input: ({ context }) => ({
-					client: context.client as PipecatClient,
-				}),
-			},
+			invoke: [
+				{
+					// Monitor for disconnection events
+					src: "disconnectListener",
+					input: ({ context }) => ({
+						client: context.client as PipecatClient,
+					}),
+				},
+				{
+					// Handle provider change requests from main window
+					src: "providerChangeListener",
+					input: ({ context }) => ({
+						client: context.client as PipecatClient,
+					}),
+				},
+			],
 			on: {
 				DISCONNECTED: "retrying",
 				COMMUNICATION_ERROR: {

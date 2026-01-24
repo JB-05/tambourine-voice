@@ -6,9 +6,10 @@ import {
 	type CleanupPromptSections,
 	type ConnectionState,
 	configAPI,
+	getProviderIdFromSelection,
 	type HotkeyConfig,
-	type LLMProviderId,
-	type STTProviderId,
+	parseLLMProviderSelection,
+	parseSTTProviderSelection,
 	tauriAPI,
 	validateHotkeyNotDuplicate,
 } from "./tauri";
@@ -309,28 +310,6 @@ export function useAvailableProviders() {
 	});
 }
 
-export function useUpdateSTTProvider() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationFn: (provider: STTProviderId) =>
-			tauriAPI.updateSTTProvider(provider),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["settings"] });
-		},
-	});
-}
-
-export function useUpdateLLMProvider() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationFn: (provider: LLMProviderId) =>
-			tauriAPI.updateLLMProvider(provider),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["settings"] });
-		},
-	});
-}
-
 // STT Timeout mutation (Rust syncs to server)
 export function useUpdateSTTTimeout() {
 	const queryClient = useQueryClient();
@@ -353,6 +332,93 @@ export function useUpdateServerUrl() {
 			queryClient.invalidateQueries({ queryKey: ["serverUrl"] });
 			// Notify other windows about settings change
 			tauriAPI.emitSettingsChanged();
+		},
+	});
+}
+
+// =============================================================================
+// Provider Mutations with Server Confirmation
+// =============================================================================
+// These hooks wrap the Tauri event-based provider switching in promises,
+// implementing pessimistic updates: the UI shows a pending state until
+// the server confirms the change succeeded.
+
+/**
+ * Mutation hook for switching LLM provider with server confirmation.
+ * Wraps the event-based flow (main → overlay → server → overlay → main) in a Promise.
+ */
+export function useUpdateLLMProviderWithServer() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (value: string) => {
+			const { promise, resolve, reject } =
+				Promise.withResolvers<ReturnType<typeof parseLLMProviderSelection>>();
+
+			// Await listener registration BEFORE emitting to avoid race condition
+			const unlisten = await tauriAPI.onConfigResponse((response) => {
+				if (response.setting !== "llm-provider") return;
+
+				unlisten();
+
+				if (response.type === "config-updated") {
+					const selection = parseLLMProviderSelection(response.value);
+					if (selection) resolve(selection);
+					else reject(new Error("Failed to parse server response"));
+				} else {
+					reject(new Error(response.error ?? "Provider change failed"));
+				}
+			});
+
+			tauriAPI.emitProviderChangeRequest({ providerType: "llm", value });
+
+			return promise;
+		},
+		onSuccess: (selection) => {
+			if (!selection) return;
+			const providerId = getProviderIdFromSelection(selection);
+			tauriAPI.updateLLMProvider(providerId);
+			queryClient.invalidateQueries({ queryKey: ["settings"] });
+		},
+	});
+}
+
+/**
+ * Mutation hook for switching STT provider with server confirmation.
+ * Same pattern as useUpdateLLMProviderWithServer.
+ */
+export function useUpdateSTTProviderWithServer() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (value: string) => {
+			const { promise, resolve, reject } =
+				Promise.withResolvers<ReturnType<typeof parseSTTProviderSelection>>();
+
+			// Await listener registration BEFORE emitting to avoid race condition
+			const unlisten = await tauriAPI.onConfigResponse((response) => {
+				if (response.setting !== "stt-provider") return;
+
+				unlisten();
+
+				if (response.type === "config-updated") {
+					const selection = parseSTTProviderSelection(response.value);
+					if (selection) resolve(selection);
+					else reject(new Error("Failed to parse server response"));
+				} else {
+					reject(new Error(response.error ?? "Provider change failed"));
+				}
+			});
+
+			tauriAPI.emitProviderChangeRequest({ providerType: "stt", value });
+
+			return promise;
+		},
+		onSuccess: (selection) => {
+			if (!selection) return;
+			const providerId = getProviderIdFromSelection(selection);
+			tauriAPI.updateSTTProvider(providerId);
+			queryClient.invalidateQueries({ queryKey: ["settings"] });
 		},
 	});
 }

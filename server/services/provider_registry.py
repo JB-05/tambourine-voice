@@ -3,11 +3,12 @@
 This module defines the available providers using direct class imports for
 compile-time type safety. If pipecat changes class names, we get import errors
 at startup instead of runtime failures.
+
+Provider ID enums are defined in protocol.providers (single source of truth).
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Final
 
 # Direct imports from pipecat - type checked at import time
@@ -31,44 +32,14 @@ from pipecat.services.speechmatics.stt import SpeechmaticsSTTService
 from pipecat.services.stt_service import STTService
 from pipecat.services.whisper.stt import WhisperSTTService
 
+# Provider ID enums from protocol (single source of truth)
+from protocol.providers import LLMProviderId, STTProviderId
+
 # Custom service for Nemotron ASR
 from services.nvidia_stt import NVidiaWebSocketSTTService
 
 if TYPE_CHECKING:
     from config.settings import Settings
-
-
-# =============================================================================
-# Provider ID Enums - Type-safe provider identifiers
-# =============================================================================
-
-
-class STTProviderId(StrEnum):
-    """Speech-to-Text provider identifiers."""
-
-    SPEECHMATICS = "speechmatics"
-    ASSEMBLYAI = "assemblyai"
-    AWS = "aws"
-    AZURE = "azure"
-    CARTESIA = "cartesia"
-    DEEPGRAM = "deepgram"
-    GOOGLE = "google"
-    GROQ = "groq"
-    NEMOTRON = "nemotron"
-    OPENAI = "openai"
-    WHISPER = "whisper"
-
-
-class LLMProviderId(StrEnum):
-    """Large Language Model provider identifiers."""
-
-    ANTHROPIC = "anthropic"
-    CEREBRAS = "cerebras"
-    GEMINI = "gemini"
-    GROQ = "groq"
-    OLLAMA = "ollama"
-    OPENAI = "openai"
-    OPENROUTER = "openrouter"
 
 
 # =============================================================================

@@ -92,7 +92,15 @@ function parseServerMessage(raw: unknown): ServerMessage {
 	const result = KnownServerMessageSchema.safeParse(raw);
 	if (!result.success) {
 		const originalType = (raw as { type?: string })?.type ?? "";
-		console.debug("Unknown server message type:", originalType);
+		// Log at warn level so it's visible by default in devtools
+		console.warn(
+			"[Pipecat] Failed to parse server message:",
+			originalType,
+			"\nRaw:",
+			raw,
+			"\nZod errors:",
+			result.error.issues,
+		);
 		return { type: "unknown", originalType, raw };
 	}
 	return result.data;
@@ -277,9 +285,6 @@ function RecordingControl() {
 	const { data: settings } = useSettings();
 
 	const streamedLlmResponseChunksRef = useRef("");
-
-	// Track previous settings to detect actual changes (for syncing while connected)
-	const prevSettingsRef = useRef(settings);
 
 	const typeTextMutation = useTypeText();
 	const addHistoryEntry = useAddHistoryEntry();
@@ -627,12 +632,10 @@ function RecordingControl() {
 	// Track if initial settings sync has been done for this connection
 	const hasInitialSyncRef = useRef(false);
 
-	// Sync provider settings when they change OR on initial connection (state transitions to 'idle')
+	// Sync provider settings on initial connection (state transitions to 'idle')
 	// Provider switching uses RTVI (requires frame injection into pipeline)
+	// Runtime provider changes are handled via onProviderChangeRequest event (pessimistic updates)
 	useEffect(() => {
-		const prevSettings = prevSettingsRef.current;
-		prevSettingsRef.current = settings;
-
 		// Only sync if connected (idle state)
 		if (!client || displayState !== "idle") {
 			// Reset initial sync flag and notify Rust when disconnected
@@ -678,21 +681,10 @@ function RecordingControl() {
 					handleCommunicationError,
 				);
 			}
-			return;
 		}
 
-		// Runtime settings change - only send if settings actually changed
-		if (prevSettings === settings) return;
-
-		// Provider changes via RTVI (only provider switching uses RTVI now)
-		const messages = buildConfigMessages(settings, prevSettings);
-		if (messages.length > 0) {
-			sendConfigMessages(
-				client,
-				messages as NonEmptyArray<ConfigMessage>,
-				(error) => send({ type: "COMMUNICATION_ERROR", error }),
-			);
-		}
+		// Runtime provider changes are now handled via onProviderChangeRequest event
+		// (pessimistic updates - main window sends request, overlay sends to server)
 	}, [client, displayState, settings, buildConfigMessages, send]);
 
 	// LLM text streaming handlers (using official RTVI protocol via RTVIObserver)
@@ -753,6 +745,7 @@ function RecordingControl() {
 						});
 					})
 					.with({ type: "config-error" }, ({ setting, error }) => {
+						console.error("[Pipecat] Config error:", setting, error);
 						tauriAPI.emitConfigResponse({
 							type: "config-error",
 							setting,
@@ -760,7 +753,7 @@ function RecordingControl() {
 						});
 					})
 					.with({ type: "unknown" }, () => {
-						// Already logged at debug level in parseServerMessage
+						// Already logged at warn level in parseServerMessage
 					})
 					.exhaustive();
 			},

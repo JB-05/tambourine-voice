@@ -1,6 +1,5 @@
 import { Kbd, Loader, NavLink, Text, Title, Tooltip } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Home, Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { match } from "ts-pattern";
@@ -22,7 +21,6 @@ import {
 	useShortcutErrors,
 } from "./lib/queries";
 import {
-	type AvailableProvidersData,
 	type ConfigResponse,
 	type HotkeyConfig,
 	type LLMErrorPayload,
@@ -280,7 +278,6 @@ export default function App() {
 	const [activeView, setActiveView] = useState<View>("home");
 	const connectionState = useRecordingStore((s) => s.state);
 	const hasShownConflictNotification = useRef(false);
-	const queryClient = useQueryClient();
 
 	// Refresh server-side queries when connection is established
 	useRefreshServerQueriesOnConnect(connectionState);
@@ -311,13 +308,14 @@ export default function App() {
 	}, [shortcutErrors]);
 
 	// Listen for config response events from overlay window and show notifications
+	// Store updates are now handled in ProvidersSettings (pessimistic updates)
 	useEffect(() => {
 		let isMounted = true;
 		let unlisten: (() => void) | undefined;
 
 		const handleConfigResponse = (response: ConfigResponse) => {
 			match(response)
-				.with({ type: "config-updated" }, ({ setting, value: _value }) => {
+				.with({ type: "config-updated" }, ({ setting }) => {
 					notifications.show({
 						title: "Settings Updated",
 						message: `${formatSettingName(setting)} updated successfully`,
@@ -332,29 +330,7 @@ export default function App() {
 						color: "red",
 						autoClose: 5000,
 					});
-
-					// Auto-fallback to first available provider when a provider is unavailable
-					if (setting === "stt-provider" || setting === "llm-provider") {
-						const providers = queryClient.getQueryData<AvailableProvidersData>([
-							"availableProviders",
-						]);
-						if (providers) {
-							const providerList =
-								setting === "stt-provider" ? providers.stt : providers.llm;
-							const firstProvider = providerList[0];
-							if (firstProvider) {
-								const updateFn =
-									setting === "stt-provider"
-										? tauriAPI.updateSTTProvider
-										: tauriAPI.updateLLMProvider;
-
-								updateFn(firstProvider.value).then(() => {
-									queryClient.invalidateQueries({ queryKey: ["settings"] });
-									tauriAPI.emitSettingsChanged();
-								});
-							}
-						}
-					}
+					// No auto-fallback - dropdown reverts to previous value (pessimistic update)
 				})
 				.exhaustive();
 		};
@@ -372,7 +348,7 @@ export default function App() {
 			isMounted = false;
 			unlisten?.();
 		};
-	}, [queryClient]);
+	}, []);
 
 	// Listen for LLM errors from overlay and show detailed toast
 	useEffect(() => {

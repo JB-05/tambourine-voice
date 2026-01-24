@@ -15,13 +15,23 @@ vi.mock("../lib/tauri", () => ({
 		emitConnectionState: vi.fn(),
 		emitReconnectStarted: vi.fn(),
 		emitReconnectResult: vi.fn(),
+		emitConfigResponse: vi.fn(),
 		getClientUUID: vi.fn().mockResolvedValue(null),
 		setClientUUID: vi.fn().mockResolvedValue(undefined),
 		clearClientUUID: vi.fn().mockResolvedValue(undefined),
+		onProviderChangeRequest: vi.fn().mockResolvedValue(() => {}),
 	},
 	configAPI: {
 		registerClient: vi.fn().mockResolvedValue("mock-uuid"),
 	},
+	toSTTProviderSelection: vi.fn((id: string) => ({
+		mode: "known",
+		providerId: id,
+	})),
+	toLLMProviderSelection: vi.fn((id: string) => ({
+		mode: "known",
+		providerId: id,
+	})),
 }));
 
 // Suppress console.debug/log output from the real machine during tests
@@ -103,6 +113,10 @@ function createTestMachine(config: {
 				return () => {
 					callbacks.disconnectSendBack = null;
 				};
+			}),
+			providerChangeListener: fromCallback(() => {
+				// Mock implementation - doesn't need to do anything in tests
+				return () => {};
 			}),
 		},
 		actions: {
@@ -642,6 +656,7 @@ describe("connectionMachine", () => {
 					}),
 					connect: fromCallback(() => () => {}),
 					disconnectListener: fromCallback(() => () => {}),
+					providerChangeListener: fromCallback(() => () => {}),
 				},
 				actions: {
 					emitConnectionState: () => {},
@@ -706,6 +721,7 @@ describe("connectionMachine", () => {
 						return () => {};
 					}),
 					disconnectListener: fromCallback(() => () => {}),
+					providerChangeListener: fromCallback(() => () => {}),
 				},
 				actions: {
 					emitConnectionState: () => {},
@@ -767,6 +783,7 @@ describe("connectionMachine", () => {
 						return () => {};
 					}),
 					disconnectListener: fromCallback(() => () => {}),
+					providerChangeListener: fromCallback(() => () => {}),
 				},
 				actions: {
 					emitConnectionState: () => {},
@@ -918,6 +935,7 @@ describe("connectionMachine", () => {
 						return () => {};
 					}),
 					disconnectListener: fromCallback(() => () => {}),
+					providerChangeListener: fromCallback(() => () => {}),
 				},
 				actions: {
 					emitConnectionState: () => {},

@@ -1,6 +1,10 @@
-"""Typed provider selection discriminated unions.
+"""Provider ID enums and selection types.
 
-These types provide type-safe provider selection with three modes:
+This module is the single source of truth for provider identifiers:
+- STTProviderId: Speech-to-Text provider IDs
+- LLMProviderId: Large Language Model provider IDs
+
+Selection types provide type-safe provider selection with three modes:
 - AutoProvider: Use server's configured default provider
 - KnownSTTProvider/KnownLLMProvider: Known provider from the enum
 - OtherSTTProvider/OtherLLMProvider: Unknown provider (forward compatibility)
@@ -9,11 +13,47 @@ The discriminated union pattern enables exhaustive pattern matching
 and type-safe provider handling.
 """
 
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-from services.provider_registry import LLMProviderId, STTProviderId
+# =============================================================================
+# Provider ID Enums - Single source of truth for valid provider identifiers
+# =============================================================================
+
+
+class STTProviderId(StrEnum):
+    """Speech-to-Text provider identifiers."""
+
+    SPEECHMATICS = "speechmatics"
+    ASSEMBLYAI = "assemblyai"
+    AWS = "aws"
+    AZURE = "azure"
+    CARTESIA = "cartesia"
+    DEEPGRAM = "deepgram"
+    GOOGLE = "google"
+    GROQ = "groq"
+    NEMOTRON = "nemotron"
+    OPENAI = "openai"
+    WHISPER = "whisper"
+
+
+class LLMProviderId(StrEnum):
+    """Large Language Model provider identifiers."""
+
+    ANTHROPIC = "anthropic"
+    CEREBRAS = "cerebras"
+    GEMINI = "gemini"
+    GROQ = "groq"
+    OLLAMA = "ollama"
+    OPENAI = "openai"
+    OPENROUTER = "openrouter"
+
+
+# =============================================================================
+# Provider Selection Types - Used for both input and config response output
+# =============================================================================
 
 
 class AutoProvider(BaseModel):
@@ -26,28 +66,32 @@ class KnownSTTProvider(BaseModel):
     """Known STT provider from the enum."""
 
     mode: Literal["known"]
-    provider_id: STTProviderId = Field(validation_alias="providerId")
+    provider_id: STTProviderId = Field(
+        validation_alias="providerId", serialization_alias="providerId"
+    )
 
 
 class OtherSTTProvider(BaseModel):
     """Unknown STT provider (forward compatibility)."""
 
     mode: Literal["other"]
-    provider_id: str = Field(validation_alias="providerId")
+    provider_id: str = Field(validation_alias="providerId", serialization_alias="providerId")
 
 
 class KnownLLMProvider(BaseModel):
     """Known LLM provider from the enum."""
 
     mode: Literal["known"]
-    provider_id: LLMProviderId = Field(validation_alias="providerId")
+    provider_id: LLMProviderId = Field(
+        validation_alias="providerId", serialization_alias="providerId"
+    )
 
 
 class OtherLLMProvider(BaseModel):
     """Unknown LLM provider (forward compatibility)."""
 
     mode: Literal["other"]
-    provider_id: str = Field(validation_alias="providerId")
+    provider_id: str = Field(validation_alias="providerId", serialization_alias="providerId")
 
 
 STTProviderSelection = Annotated[

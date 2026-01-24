@@ -3,14 +3,14 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Store } from "@tauri-apps/plugin-store";
 import ky from "ky";
+import { z } from "zod";
 
 // =============================================================================
-// Provider ID Constants - Must match server's provider_registry.py
+// Provider ID Constants - Single source of truth
 // =============================================================================
 
-/** STT provider IDs from server/services/provider_registry.py */
-export const STT_PROVIDER_IDS = [
-	"auto",
+/** Known STT provider IDs (excluding "auto") */
+export const STT_KNOWN_PROVIDER_IDS = [
 	"speechmatics",
 	"assemblyai",
 	"aws",
@@ -24,9 +24,11 @@ export const STT_PROVIDER_IDS = [
 	"whisper",
 ] as const;
 
-/** LLM provider IDs from server/services/provider_registry.py */
-export const LLM_PROVIDER_IDS = [
-	"auto",
+/** All STT provider IDs including "auto" */
+export const STT_PROVIDER_IDS = ["auto", ...STT_KNOWN_PROVIDER_IDS] as const;
+
+/** Known LLM provider IDs (excluding "auto") */
+export const LLM_KNOWN_PROVIDER_IDS = [
 	"anthropic",
 	"cerebras",
 	"gemini",
@@ -36,23 +38,27 @@ export const LLM_PROVIDER_IDS = [
 	"openrouter",
 ] as const;
 
-/** Known STT provider IDs that we have type definitions for */
-export type KnownSTTProviderId = (typeof STT_PROVIDER_IDS)[number];
+/** All LLM provider IDs including "auto" */
+export const LLM_PROVIDER_IDS = ["auto", ...LLM_KNOWN_PROVIDER_IDS] as const;
 
-/** Known LLM provider IDs that we have type definitions for */
-export type KnownLLMProviderId = (typeof LLM_PROVIDER_IDS)[number];
+// Types derived from constants
+/** Known STT provider IDs that the client recognizes */
+export type KnownSTTProviderId = (typeof STT_KNOWN_PROVIDER_IDS)[number];
+
+/** Known LLM provider IDs that the client recognizes */
+export type KnownLLMProviderId = (typeof LLM_KNOWN_PROVIDER_IDS)[number];
 
 /**
- * Valid STT provider ID - includes known providers plus any string for forward compatibility.
- * When server adds new providers, old clients can still use them (as unknown strings).
+ * All STT provider IDs including "auto".
  * The `(string & {})` trick preserves autocomplete for known values while accepting any string.
  */
-export type STTProviderId = KnownSTTProviderId | (string & {});
+export type STTProviderId = (typeof STT_PROVIDER_IDS)[number] | (string & {});
 
 /**
- * Valid LLM provider ID - includes known providers plus any string for forward compatibility.
+ * All LLM provider IDs including "auto".
+ * The `(string & {})` trick preserves autocomplete for known values while accepting any string.
  */
-export type LLMProviderId = KnownLLMProviderId | (string & {});
+export type LLMProviderId = (typeof LLM_PROVIDER_IDS)[number] | (string & {});
 
 // =============================================================================
 // Provider Selection Discriminated Unions
@@ -64,32 +70,32 @@ type AutoProviderSelection = { mode: "auto" };
 /** Known STT provider from the type-safe list */
 type KnownSTTProviderSelection = {
 	mode: "known";
-	providerId: Exclude<KnownSTTProviderId, "auto">;
+	providerId: KnownSTTProviderId;
 };
 
 /** Unknown STT provider (forward compatibility) */
-type UnknownSTTProviderSelection = { mode: "other"; providerId: string };
+type OtherSTTProviderSelection = { mode: "other"; providerId: string };
 
 /** Known LLM provider from the type-safe list */
 type KnownLLMProviderSelection = {
 	mode: "known";
-	providerId: Exclude<KnownLLMProviderId, "auto">;
+	providerId: KnownLLMProviderId;
 };
 
 /** Unknown LLM provider (forward compatibility) */
-type UnknownLLMProviderSelection = { mode: "other"; providerId: string };
+type OtherLLMProviderSelection = { mode: "other"; providerId: string };
 
 /** Discriminated union for STT provider selection */
 export type STTProviderSelection =
 	| AutoProviderSelection
 	| KnownSTTProviderSelection
-	| UnknownSTTProviderSelection;
+	| OtherSTTProviderSelection;
 
 /** Discriminated union for LLM provider selection */
 export type LLMProviderSelection =
 	| AutoProviderSelection
 	| KnownLLMProviderSelection
-	| UnknownLLMProviderSelection;
+	| OtherLLMProviderSelection;
 
 /**
  * Convert a stored STT provider ID to a selection object for RTVI messages.
@@ -99,13 +105,9 @@ export function toSTTProviderSelection(
 	id: STTProviderId,
 ): STTProviderSelection {
 	if (id === "auto") return { mode: "auto" };
-	// Check if it's a known provider (excluding "auto" which is already handled)
-	const knownIds = STT_PROVIDER_IDS.filter((p) => p !== "auto");
-	if (knownIds.includes(id as Exclude<KnownSTTProviderId, "auto">)) {
-		return {
-			mode: "known",
-			providerId: id as Exclude<KnownSTTProviderId, "auto">,
-		};
+	// Check if it's a known provider
+	if ((STT_KNOWN_PROVIDER_IDS as readonly string[]).includes(id as string)) {
+		return { mode: "known", providerId: id as KnownSTTProviderId };
 	}
 	return { mode: "other", providerId: id };
 }
@@ -118,15 +120,119 @@ export function toLLMProviderSelection(
 	id: LLMProviderId,
 ): LLMProviderSelection {
 	if (id === "auto") return { mode: "auto" };
-	// Check if it's a known provider (excluding "auto" which is already handled)
-	const knownIds = LLM_PROVIDER_IDS.filter((p) => p !== "auto");
-	if (knownIds.includes(id as Exclude<KnownLLMProviderId, "auto">)) {
-		return {
-			mode: "known",
-			providerId: id as Exclude<KnownLLMProviderId, "auto">,
-		};
+	// Check if it's a known provider
+	if ((LLM_KNOWN_PROVIDER_IDS as readonly string[]).includes(id as string)) {
+		return { mode: "known", providerId: id as KnownLLMProviderId };
 	}
 	return { mode: "other", providerId: id };
+}
+
+// =============================================================================
+// Zod Schemas for Server Response Parsing
+// =============================================================================
+
+/**
+ * Primary schema for STT provider selection - validates "auto" or "known" with strict enum.
+ * This is what we EXPECT from the server for providers we recognize.
+ */
+const STTProviderSelectionPrimarySchema = z.discriminatedUnion("mode", [
+	z.object({ mode: z.literal("auto") }),
+	z.object({
+		mode: z.literal("known"),
+		providerId: z.enum(STT_KNOWN_PROVIDER_IDS),
+	}),
+]);
+
+/**
+ * Primary schema for LLM provider selection - validates "auto" or "known" with strict enum.
+ * This is what we EXPECT from the server for providers we recognize.
+ */
+const LLMProviderSelectionPrimarySchema = z.discriminatedUnion("mode", [
+	z.object({ mode: z.literal("auto") }),
+	z.object({
+		mode: z.literal("known"),
+		providerId: z.enum(LLM_KNOWN_PROVIDER_IDS),
+	}),
+]);
+
+/**
+ * Fallback schema - extracts providerId when primary enum validation fails.
+ * Accepts "known" mode (for provider IDs the server recognizes but client doesn't)
+ * and "other" mode. This enables forward compatibility: old clients can use
+ * providers added in newer server versions.
+ */
+const ProviderIdFallbackSchema = z.object({
+	mode: z.literal("known").or(z.literal("other")),
+	providerId: z.string(),
+});
+
+/**
+ * Parse STT provider selection from server response.
+ * Mirrors server's parse_stt_provider_selection pattern:
+ * 1. Try "auto" or "known" with validated enum
+ * 2. If enum validation fails → fallback to "other"
+ *
+ * This enables forward compatibility: old clients can use new server providers.
+ */
+export function parseSTTProviderSelection(
+	value: unknown,
+): STTProviderSelection | null {
+	// 1. Try primary schema (auto or known with validated enum)
+	const primaryResult = STTProviderSelectionPrimarySchema.safeParse(value);
+	if (primaryResult.success) {
+		return primaryResult.data;
+	}
+
+	// 2. Fallback: server sent unknown provider → put in "other"
+	const fallbackResult = ProviderIdFallbackSchema.safeParse(value);
+	if (fallbackResult.success) {
+		return { mode: "other", providerId: fallbackResult.data.providerId };
+	}
+
+	// 3. Complete structural failure
+	console.warn("Failed to parse STT provider selection:", value);
+	return null;
+}
+
+/**
+ * Parse LLM provider selection from server response.
+ * Mirrors server's parse_llm_provider_selection pattern:
+ * 1. Try "auto" or "known" with validated enum
+ * 2. If enum validation fails → fallback to "other"
+ *
+ * This enables forward compatibility: old clients can use new server providers.
+ */
+export function parseLLMProviderSelection(
+	value: unknown,
+): LLMProviderSelection | null {
+	// 1. Try primary schema (auto or known with validated enum)
+	const primaryResult = LLMProviderSelectionPrimarySchema.safeParse(value);
+	if (primaryResult.success) {
+		return primaryResult.data;
+	}
+
+	// 2. Fallback: server sent unknown provider → put in "other"
+	const fallbackResult = ProviderIdFallbackSchema.safeParse(value);
+	if (fallbackResult.success) {
+		return { mode: "other", providerId: fallbackResult.data.providerId };
+	}
+
+	// 3. Complete structural failure
+	console.warn("Failed to parse LLM provider selection:", value);
+	return null;
+}
+
+/**
+ * Extract provider ID string from a selection.
+ * Use this when you just need the ID for storage/display.
+ */
+export function getProviderIdFromSelection(
+	selection: STTProviderSelection | LLMProviderSelection,
+): string {
+	if (selection.mode === "auto") {
+		return "auto";
+	}
+	return selection.providerId;
 }
 
 // =============================================================================
@@ -148,6 +254,7 @@ export type {
 	ConfigResponse,
 	ConnectionState,
 	LLMErrorPayload,
+	ProviderChangeRequestPayload,
 } from "./events";
 
 import {
@@ -157,6 +264,7 @@ import {
 	emitEvent,
 	type LLMErrorPayload,
 	listenEvent,
+	type ProviderChangeRequestPayload,
 } from "./events";
 
 interface TypeTextResult {
@@ -505,6 +613,19 @@ export const tauriAPI = {
 		callback: (error: LLMErrorPayload) => void,
 	): Promise<UnlistenFn> {
 		return listenEvent(AppEvents.llmError, callback);
+	},
+
+	// Provider change requests (main -> overlay, pessimistic updates)
+	async emitProviderChangeRequest(
+		payload: ProviderChangeRequestPayload,
+	): Promise<void> {
+		return emitEvent(AppEvents.providerChangeRequest, payload);
+	},
+
+	async onProviderChangeRequest(
+		callback: (payload: ProviderChangeRequestPayload) => void,
+	): Promise<UnlistenFn> {
+		return listenEvent(AppEvents.providerChangeRequest, callback);
 	},
 
 	// Server connection state management (for Rust-side config syncing)

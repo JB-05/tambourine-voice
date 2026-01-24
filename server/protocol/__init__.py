@@ -21,27 +21,29 @@ from protocol.providers import (
     AutoProvider,
     KnownLLMProvider,
     KnownSTTProvider,
+    LLMProviderId,
     LLMProviderSelection,
     OtherLLMProvider,
     OtherSTTProvider,
+    STTProviderId,
     STTProviderSelection,
 )
 
 __all__ = [
-    # Provider types
     "AutoProvider",
-    # Message types
     "ClientMessage",
     "ConfigErrorMessage",
     "ConfigMessage",
     "ConfigUpdatedMessage",
     "KnownLLMProvider",
     "KnownSTTProvider",
+    "LLMProviderId",
     "LLMProviderSelection",
     "OtherLLMProvider",
     "OtherSTTProvider",
     "RecordingCompleteMessage",
     "RecordingMessage",
+    "STTProviderId",
     "STTProviderSelection",
     "ServerMessage",
     "SetLLMProviderData",
