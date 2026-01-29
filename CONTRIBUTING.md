@@ -135,6 +135,17 @@ STT and LLM providers are defined in `server/services/provider_registry.py`:
 
 See existing providers for credential mapper patterns.
 
+## Examples
+
+The `examples/` directory contains pre-built prompt configurations for different domains. Community contributions are welcome.
+
+### Creating a New Example
+
+1. Customize your prompts in **Settings > LLM Formatting Prompt**
+2. Go to **Settings > Data Management** and click Export
+3. Copy the 3 `.md` files to a new directory in `examples/` (use lowercase with hyphens, e.g., `medical-transcription`)
+4. Test by importing and performing dictation
+
 ## Questions?
 
 Open an issue or join the discussion on the project's GitHub page.

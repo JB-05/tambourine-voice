@@ -244,25 +244,12 @@ pnpm build         # Build for current platform
 
 ## API Reference
 
-The server exposes HTTP endpoints on port 8765 (default):
+The server exposes HTTP endpoints on port 8765 (default). Sample endpoints:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check for container orchestration |
-| `/api/client/register` | POST | Generate and register a new client UUID |
-| `/api/client/verify/{uuid}` | GET | Verify if a client UUID is registered |
-| `/api/offer` | POST | WebRTC SDP offer/answer handshake |
-| `/api/offer` | PATCH | ICE candidate trickle |
-| `/api/providers` | GET | List available STT and LLM providers |
-| `/api/prompt/sections/default` | GET | Get default prompt templates |
-| `/api/config/prompts` | PUT | Update prompt sections (requires `X-Client-UUID` header) |
-| `/api/config/stt-timeout` | PUT | Update STT timeout (requires `X-Client-UUID` header) |
+- `GET /health` - Health check for container orchestration
+- `GET /api/providers` - List available STT and LLM providers
 
-All endpoints are rate-limited. See `server/utils/rate_limiter.py` for limits.
-
-### Rate Limiting
-
-All endpoints include IP-based rate limiting to prevent abuse. Limits are configured in `server/utils/rate_limiter.py`.
+See `server/main.py` for all endpoints. All endpoints are rate-limited.
 
 ## Configuration
 
@@ -281,6 +268,44 @@ The app connects to `localhost:8765` by default via WebRTC. Settings are persist
   - Core Formatting Rules - Filler word removal, punctuation, capitalization
   - Advanced Features - Backtrack corrections ("scratch that"), list formatting
   - Personal Dictionary - Custom words
+
+### Data Management
+
+Tambourine supports exporting and importing your configuration data, making it easy to backup settings, share configurations, or try community examples.
+
+#### Export Data
+
+Go to **Settings > Data Management** and click the export button. Select a folder and Tambourine exports 5 files:
+
+| File                              | Description                                                |
+| --------------------------------- | ---------------------------------------------------------- |
+| `tambourine-settings.json`        | App settings (hotkeys, providers, audio preferences)       |
+| `tambourine-history.json`         | Transcription history entries                              |
+| `tambourine-prompt-main.md`       | Core formatting rules                                      |
+| `tambourine-prompt-advanced.md`   | Advanced features (backtrack corrections, list formatting) |
+| `tambourine-prompt-dictionary.md` | Personal dictionary for custom terminology                 |
+
+#### Import Data
+
+Click the import button in **Settings > Data Management** and select one or more files (`.json` or `.md`). Tambourine auto-detects file types from their content.
+
+For history imports, you can choose a merge strategy:
+- **Merge (skip duplicates)** - Add new entries, skip existing ones
+- **Merge (keep all)** - Append all imported entries
+- **Replace** - Delete existing history and use imported entries
+
+#### Using Examples
+
+The `examples/` folder contains ready-to-use prompt configurations for different use cases.
+
+To use an example:
+1. Open **Settings > Data Management**
+2. Click the import button
+3. Navigate to `examples/<example-name>/`
+4. Select all three `.md` files
+5. Click Open
+
+Your prompts will be updated immediately. You can further customize them in **Settings > LLM Formatting Prompt**.
 
 ## Tech Stack
 

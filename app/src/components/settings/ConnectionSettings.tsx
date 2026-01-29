@@ -216,7 +216,10 @@ export function ConnectionSettings() {
 							</span>
 						</div>
 					</div>
-					<Tooltip label={isReconnecting ? "Reconnecting..." : "Reconnect"} withArrow>
+					<Tooltip
+						label={isReconnecting ? "Reconnecting..." : "Reconnect"}
+						withArrow
+					>
 						<ActionIcon
 							onClick={handleReconnect}
 							disabled={isButtonDisabled}
