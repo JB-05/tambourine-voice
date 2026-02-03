@@ -29,7 +29,7 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.service_switcher import ServiceSwitcher, ServiceSwitcherStrategyManual
 from pipecat.pipeline.task import PipelineParams, PipelineTask
-from pipecat.processors.frameworks.rtvi import RTVIObserver, RTVIProcessor
+from pipecat.processors.frameworks.rtvi import RTVIProcessor
 from pipecat.services.llm_service import LLMService
 from pipecat.services.stt_service import STTService
 from pipecat.transports.base_transport import TransportParams
@@ -210,13 +210,41 @@ async def run_pipeline(
         strategy_type=ServiceSwitcherStrategyManual,
     )
 
-    # RTVIProcessor handles the RTVI protocol (client messages, server responses)
-    rtvi_processor = RTVIProcessor()
+    # Build pipeline - Pipecat 0.0.101+ handles RTVI automatically via task.rtvi
+    # The aggregator pair from context_manager collects transcriptions and LLM responses
+    pipeline = Pipeline(
+        [
+            transport.input(),
+            stt_switcher,
+            turn_controller,  # Controls turn boundaries, passes transcriptions through
+            context_manager.user_aggregator(),  # Collects transcriptions, emits LLMContextFrame
+            llm_switcher,
+            context_manager.assistant_aggregator(),  # Collects LLM responses
+            transport.output(),
+        ]
+    )
+
+    # Create pipeline task - RTVI is automatically enabled and accessible via task.rtvi
+    # This avoids duplicate RTVIObservers that caused text duplication in 0.0.101
+    task = PipelineTask(
+        pipeline,
+        params=PipelineParams(
+            allow_interruptions=False,
+            enable_metrics=True,
+            enable_usage_metrics=True,
+            enable_heartbeats=True,
+        ),
+        idle_timeout_frames=(HeartbeatFrame,),
+        observers=[
+            UserBotLatencyLogObserver(),
+            PipelineLogObserver(),
+        ],
+    )
 
     # ConfigurationHandler processes provider switching messages from RTVI client
     # Note: State-only config (prompts, timeouts) is now handled via HTTP API
     config_handler = ConfigurationHandler(
-        rtvi_processor=rtvi_processor,
+        rtvi_processor=task.rtvi,
         stt_switcher=stt_switcher,
         llm_switcher=llm_switcher,
         stt_services=stt_services,
@@ -224,8 +252,8 @@ async def run_pipeline(
         settings=services.settings,
     )
 
-    # Register event handler for client messages
-    @rtvi_processor.event_handler("on_client_message")
+    # Register event handler for client messages on the RTVI processor
+    @task.rtvi.event_handler("on_client_message")
     async def on_client_message(processor: RTVIProcessor, message: Any) -> None:
         """Handle RTVI client messages for configuration and recording control."""
         _ = processor  # Unused, required by event handler signature
@@ -252,38 +280,6 @@ async def run_pipeline(
                 await config_handler.handle_config_message(parsed)
             case UnknownClientMessage():
                 pass  # Already logged at debug level in parse_client_message
-
-    # Build pipeline - RTVIProcessor at the start handles RTVI protocol
-    # The aggregator pair from context_manager collects transcriptions and LLM responses
-    pipeline = Pipeline(
-        [
-            transport.input(),
-            rtvi_processor,  # Handles RTVI protocol messages
-            stt_switcher,
-            turn_controller,  # Controls turn boundaries, passes transcriptions through
-            context_manager.user_aggregator(),  # Collects transcriptions, emits LLMContextFrame
-            llm_switcher,
-            context_manager.assistant_aggregator(),  # Collects LLM responses
-            transport.output(),
-        ]
-    )
-
-    # Create pipeline task with RTVIObserver to send bot-llm-text to client
-    task = PipelineTask(
-        pipeline,
-        params=PipelineParams(
-            allow_interruptions=False,
-            enable_metrics=True,
-            enable_usage_metrics=True,
-            enable_heartbeats=True,
-        ),
-        idle_timeout_frames=(HeartbeatFrame,),
-        observers=[
-            UserBotLatencyLogObserver(),
-            RTVIObserver(rtvi_processor),  # Sends bot-llm-text messages to client
-            PipelineLogObserver(),
-        ],
-    )
 
     # Set up event handlers
     @transport.event_handler("on_client_connected")
