@@ -49,6 +49,11 @@ const KnownServerMessageSchema = z.discriminatedUnion("type", [
 		type: z.literal("recording-complete"),
 		hasContent: z.boolean().optional(),
 	}),
+	// Raw transcription (LLM bypassed) - sent when LLM formatting is disabled
+	z.object({
+		type: z.literal("raw-transcription"),
+		text: z.string(),
+	}),
 	// Provider switching uses RTVI (requires frame injection into pipeline)
 	// z.enum() validates known settings; unknown settings become UnknownServerMessage
 	z.object({
@@ -360,7 +365,7 @@ function RecordingControl() {
 				send({ type: "START_RECORDING" });
 
 				// Signal server to start turn management
-				// This is required for server-side buffer management and turn detection
+				// LLM formatting is now controlled globally via the config API
 				// Use safe send to detect communication failures and trigger reconnection
 				safeSendClientMessage(client, "start-recording", {}, (error) =>
 					send({ type: "COMMUNICATION_ERROR", error }),
@@ -709,17 +714,40 @@ function RecordingControl() {
 		}, [clearResponseTimeout, typeTextMutation, addHistoryEntry, send]),
 	);
 
-	// Server message handler (for custom messages: config-updated, recording-complete, etc.)
+	// Server message handler (for custom messages: config-updated, recording-complete, raw-transcription, etc.)
 	useRTVIClientEvent(
 		RTVIEvent.ServerMessage,
 		useCallback(
-			(message: unknown) => {
+			async (message: unknown) => {
 				// Use forward-compatible parser (never returns null)
 				const parsed = parseServerMessage(message);
 
 				match(parsed)
 					.with({ type: "recording-complete" }, () => {
 						clearResponseTimeout();
+						send({ type: "RESPONSE_RECEIVED" });
+					})
+					.with({ type: "raw-transcription" }, async ({ text }) => {
+						// Raw transcription received (LLM bypassed)
+						clearResponseTimeout();
+						const trimmedText = text.trim();
+
+						if (trimmedText) {
+							console.debug(
+								"[Pipecat] Raw transcription (LLM bypassed):",
+								trimmedText,
+							);
+							try {
+								await typeTextMutation.mutateAsync(trimmedText);
+							} catch (error) {
+								console.error("[Pipecat] Failed to type text:", error);
+							}
+							// For raw transcription, text and rawText are the same
+							addHistoryEntry.mutate({
+								text: trimmedText,
+								rawText: trimmedText,
+							});
+						}
 						send({ type: "RESPONSE_RECEIVED" });
 					})
 					.with({ type: "config-updated" }, ({ setting, value }) => {
@@ -742,7 +770,7 @@ function RecordingControl() {
 					})
 					.exhaustive();
 			},
-			[clearResponseTimeout, send],
+			[clearResponseTimeout, send, typeTextMutation, addHistoryEntry],
 		),
 	);
 

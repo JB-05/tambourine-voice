@@ -1,14 +1,16 @@
-import { Accordion, Loader, Text } from "@mantine/core";
+import { Accordion, Button, Loader, Modal, Switch, Text } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { useCallback, useEffect, useState } from "react";
 import { match } from "ts-pattern";
 import {
 	useDefaultSections,
 	useSettings,
 	useUpdateCleanupPromptSections,
+	useUpdateLLMFormattingEnabled,
 } from "../../lib/queries";
 import type { CleanupPromptSections, PromptSection } from "../../lib/tauri";
 import { PromptSectionEditor } from "./PromptSectionEditor";
-import type { MutationStatus } from "./StatusIndicator";
+import { type MutationStatus, StatusIndicator } from "./StatusIndicator";
 
 const DEFAULT_SECTIONS: CleanupPromptSections = {
 	main: { enabled: true, mode: { mode: "auto" } },
@@ -23,6 +25,10 @@ export function PromptSettings() {
 	const { data: defaultSections, isLoading: isLoadingDefaultSections } =
 		useDefaultSections();
 	const updateCleanupPromptSections = useUpdateCleanupPromptSections();
+	const llmFormattingMutation = useUpdateLLMFormattingEnabled();
+
+	// Modal for warning when disabling LLM formatting
+	const [disableWarningOpened, disableWarningHandlers] = useDisclosure(false);
 
 	// Consolidated local state for all sections using discriminated union
 	const [localSections, setLocalSections] =
@@ -178,14 +184,67 @@ export function PromptSettings() {
 		[localSections, defaultSections, buildSections, saveAllSections],
 	);
 
+	// Check if LLM formatting is disabled
+	const isLLMFormattingDisabled = settings?.llm_formatting_enabled === false;
+
+	const handleLLMFormattingToggle = (checked: boolean) => {
+		if (!checked) {
+			// Show warning when trying to disable
+			disableWarningHandlers.open();
+		} else {
+			// Enable directly without warning
+			llmFormattingMutation.mutate(true);
+		}
+	};
+
+	const confirmDisableLLMFormatting = () => {
+		llmFormattingMutation.mutate(false);
+		disableWarningHandlers.close();
+	};
+
 	return (
 		<div className="settings-section animate-in animate-in-delay-4">
-			<h3 className="settings-section-title">LLM Formatting Prompt</h3>
-			<Text size="xs" c="dimmed" mb="sm">
-				Custom prompts are stored locally. Consider backing up your
-				customizations externally.
-			</Text>
-			<div className="settings-card">
+			<h3 className="settings-section-title">LLM Formatting</h3>
+			<div className="settings-card" style={{ marginBottom: 16 }}>
+				<div className="settings-row">
+					<div>
+						<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+							<p className="settings-label">Enable LLM Formatting</p>
+							<StatusIndicator status={llmFormattingMutation.status} />
+						</div>
+						<p className="settings-description">
+							Format transcriptions using AI
+						</p>
+					</div>
+					<Switch
+						checked={settings?.llm_formatting_enabled ?? true}
+						onChange={(event) =>
+							handleLLMFormattingToggle(event.currentTarget.checked)
+						}
+						disabled={llmFormattingMutation.isPending}
+						size="md"
+						color="gray"
+					/>
+				</div>
+			</div>
+
+			{isLLMFormattingDisabled ? (
+				<Text size="xs" c="yellow" mb="sm">
+					LLM formatting is disabled. The prompts below are not used.
+				</Text>
+			) : (
+				<Text size="xs" c="dimmed" mb="sm">
+					Custom prompts are stored locally, consider backing up externally. You
+					can export all settings including prompts below.
+				</Text>
+			)}
+			<div
+				className="settings-card"
+				style={{
+					opacity: isLLMFormattingDisabled ? 0.5 : 1,
+					pointerEvents: isLLMFormattingDisabled ? "none" : "auto",
+				}}
+			>
 				{isLoadingDefaultSections ? (
 					<div
 						style={{
@@ -268,6 +327,28 @@ export function PromptSettings() {
 					</Accordion>
 				)}
 			</div>
+
+			{/* Warning modal when disabling LLM formatting */}
+			<Modal
+				opened={disableWarningOpened}
+				onClose={disableWarningHandlers.close}
+				title="Are you sure?"
+				centered
+				size="md"
+			>
+				<Text size="sm" mb="md">
+					Disabling LLM formatting might negatively impact your experience. Only
+					disable this if you know what you're doing or need raw STT output.
+				</Text>
+				<div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+					<Button variant="default" onClick={disableWarningHandlers.close}>
+						Cancel
+					</Button>
+					<Button color="red" onClick={confirmDisableLLMFormatting}>
+						Disable Formatting
+					</Button>
+				</div>
+			</Modal>
 		</div>
 	);
 }

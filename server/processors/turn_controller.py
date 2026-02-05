@@ -154,8 +154,9 @@ class TurnController(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         """Process frames using state machine pattern.
 
-        Transcriptions are passed through to the downstream aggregator during recording
-        states. This processor only tracks whether content arrived for empty detection.
+        Transcriptions are passed through to the downstream LLMGateFilter during
+        recording states. This processor only tracks whether content arrived for
+        empty detection. The LLMGateFilter handles the actual LLM bypass logic.
         """
         await super().process_frame(frame, direction)
 
@@ -166,7 +167,8 @@ class TurnController(FrameProcessor):
 
             case TranscriptionFrame(text=text) if text:
                 await self._handle_transcription(frame, direction)
-                # Pass transcriptions through to aggregator during recording states
+                # Pass transcriptions through during recording states
+                # LLMGateFilter will decide whether to gate them for the aggregator
                 match self._state:
                     case RecordingState() | WaitingForSTTState() | DrainingState():
                         await self.push_frame(frame, direction)
@@ -204,7 +206,8 @@ class TurnController(FrameProcessor):
         logger.info("Start-recording received, entering RecordingState")
         self._state = RecordingState()
 
-        # Signal user turn start to aggregator
+        # Signal user turn start to downstream processors
+        # LLMGateFilter will decide whether to pass this to the aggregator
         await self.push_frame(UserStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
 
     async def _handle_stop_recording(self, direction: FrameDirection) -> None:
@@ -374,11 +377,10 @@ class TurnController(FrameProcessor):
     # =========================================================================
 
     async def _emit_turn_end(self, direction: FrameDirection) -> None:
-        """Signal end of user turn to the aggregator.
+        """Signal end of user turn to downstream processors.
 
-        The aggregator has been collecting transcriptions as they passed through.
-        Now we signal that the user turn has ended, which triggers the aggregator
-        to emit LLMContextFrame with all collected transcriptions.
+        Emits UserStoppedSpeakingFrame to signal turn end. The LLMGateFilter
+        decides whether to pass this to the aggregator or emit raw transcription.
         """
         await self.push_frame(UserStoppedSpeakingFrame(), direction)
 

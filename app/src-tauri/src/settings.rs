@@ -56,6 +56,8 @@ pub enum StoreKey {
     SttTimeoutSeconds,
     /// Server URL
     ServerUrl,
+    /// LLM formatting enabled (true = format with LLM, false = raw transcription)
+    LlmFormattingEnabled,
 }
 
 impl StoreKey {
@@ -73,12 +75,17 @@ impl StoreKey {
             Self::AutoMuteAudio => "auto_mute_audio",
             Self::SttTimeoutSeconds => "stt_timeout_seconds",
             Self::ServerUrl => "server_url",
+            Self::LlmFormattingEnabled => "llm_formatting_enabled",
         }
     }
 }
 
 // ============================================================================
 
+/// Enable boolean field by default (needed for serde)
+fn default_enabled() -> bool {
+    true
+}
 /// Configuration for a hotkey combination
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HotkeyConfig {
@@ -89,11 +96,6 @@ pub struct HotkeyConfig {
     /// Whether the hotkey is enabled (default: true)
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-}
-
-/// Default value for enabled field (used by serde)
-fn default_enabled() -> bool {
-    true
 }
 
 impl Default for HotkeyConfig {
@@ -295,6 +297,9 @@ pub struct AppSettings {
     pub auto_mute_audio: bool,
     pub stt_timeout_seconds: Option<f64>,
     pub server_url: String,
+    /// LLM formatting enabled (true = format with LLM, false = raw transcription)
+    #[serde(default = "default_enabled")]
+    pub llm_formatting_enabled: bool,
 }
 
 impl Default for AppSettings {
@@ -311,6 +316,7 @@ impl Default for AppSettings {
             auto_mute_audio: false,
             stt_timeout_seconds: None,
             server_url: DEFAULT_SERVER_URL.to_string(),
+            llm_formatting_enabled: true,
         }
     }
 }

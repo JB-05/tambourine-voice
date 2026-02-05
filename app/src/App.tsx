@@ -232,23 +232,55 @@ function HomeView() {
 }
 
 function SettingsView() {
-	return (
-		<div className="main-content">
-			<header className="animate-in" style={{ marginBottom: 32 }}>
-				<Title order={1} mb={4}>
-					Settings
-				</Title>
-				<Text c="dimmed" size="sm">
-					Configure your preferences
-				</Text>
-			</header>
+	const connectionState = useRecordingStore((s) => s.state);
+	const isRecordingActive =
+		connectionState === "recording" || connectionState === "processing";
 
-			<ProvidersSettings />
-			<AudioSettings />
-			<HotkeySettings />
-			<PromptSettings />
-			<ConnectionSettings />
-			<DataManagementSettings />
+	return (
+		<div
+			style={{
+				position: "relative",
+				flex: 1,
+				display: "flex",
+				flexDirection: "column",
+				minWidth: 0,
+			}}
+		>
+			{isRecordingActive && (
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						zIndex: 10,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						backgroundColor: "rgba(0, 0, 0, 0.6)",
+						backdropFilter: "blur(2px)",
+					}}
+				>
+					<Text c="dimmed" size="sm">
+						Settings are locked while recording
+					</Text>
+				</div>
+			)}
+			<div className="main-content">
+				<header className="animate-in" style={{ marginBottom: 32 }}>
+					<Title order={1} mb={4}>
+						Settings
+					</Title>
+					<Text c="dimmed" size="sm">
+						Configure your preferences
+					</Text>
+				</header>
+
+				<ProvidersSettings />
+				<AudioSettings />
+				<HotkeySettings />
+				<PromptSettings />
+				<ConnectionSettings />
+				<DataManagementSettings />
+			</div>
 		</div>
 	);
 }

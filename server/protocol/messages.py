@@ -38,7 +38,11 @@ class SettingName(StrEnum):
 
 
 class StartRecordingMessage(BaseModel):
-    """Client request to start recording audio."""
+    """Client request to start recording audio.
+
+    This is a simple marker message with no data payload.
+    LLM formatting is controlled globally via the /api/config/llm-formatting endpoint.
+    """
 
     type: Literal["start-recording"]
 
@@ -151,6 +155,17 @@ class RecordingCompleteMessage(BaseModel):
     hasContent: bool = False
 
 
+class RawTranscriptionMessage(BaseModel):
+    """Server message containing raw transcription (LLM bypassed).
+
+    Sent when LLM formatting is disabled via the config API.
+    Contains the unformatted transcription directly from STT.
+    """
+
+    type: Literal["raw-transcription"] = "raw-transcription"
+    text: str
+
+
 class ConfigUpdatedMessage(BaseModel):
     """Server notification that a setting was updated successfully."""
 
@@ -169,6 +184,6 @@ class ConfigErrorMessage(BaseModel):
 
 
 ServerMessage = Annotated[
-    RecordingCompleteMessage | ConfigUpdatedMessage | ConfigErrorMessage,
+    RecordingCompleteMessage | RawTranscriptionMessage | ConfigUpdatedMessage | ConfigErrorMessage,
     Field(discriminator="type"),
 ]
